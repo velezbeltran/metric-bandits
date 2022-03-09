@@ -1,0 +1,141 @@
+\documentclass{article}
+\usepackage[final]{neurips_2021}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{lipsum}
+\usepackage{amsmath}
+\usepackage{bbm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+
+
+\title{Active metric learning}
+
+\author{
+  Nicolas Beltran\\
+  Department of Computer Science\\
+  Columbia University\\
+  New York City, NY 10027 \\
+  \texttt{nb2838@columbia.edu}\\
+  \And
+  Ketan Jog\\
+  Department of Computer Science\\
+  Columbia University\\
+  New York City, NY 10027 \\
+  \texttt{kj2473@columbia.edu}\\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+\end{abstract}
+
+\section{Introduction}
+
+% Goals for this section
+% - Provide a general introduction for metric learning. (some math details might be useful)
+% - Justify the importance of considering an active online setting.
+% - Mention some additional papers besides the ones that we talked about?
+
+
+
+\section{Proposal}
+We would like to focus on creating a new algorithm for hierarchical metric learning in an active setting. 
+Our goals are defined precisely in section (\ref{main-prop}).
+Due to the difficulty of the problem we also have an additional proposal which focuses on an empirical analysis of active metric learning algorithms. 
+We intend to work on both for most of the semester and focus on one during the last weeks for the final report and presentation. 
+
+
+\subsection{Main proposal}
+\label{main-prop}
+Our more ambitious goal is to design an algorithm that can learn a mahalanobis metric in an online fashion using expert feed back. Formally, we can describe it as follows:
+\paragraph{Assumptions} We assume that:
+\begin{enumerate}
+\item
+  There exists metric space $(\mathcal{X}, d^\star)$ where $d^\star \in M$ and $M$ is the space of all Mahalanobis metrics.
+\item
+  There exists a tree $\mathcal{T} = (V, E)$ and a mapping $\tau: \mathcal{X} \to V$ such that each $x \in \mathcal{X}$ is mapped to exactly one of the leaves of the tree. 
+  Intuitively, this is meant to represent hierarchies where each node of the tree refers to grouping and subtrees represent subgroupings.
+\item
+  There is an oracle $\mu:\mathcal{X} \times \mathcal{X} \times M$ which provides feedback on how good a proposed metric is in representing the true distance of two points.
+  This definition is vague because we haven't yet settled exactly on what type of feedback to use.
+\item 
+  We have access to a finite set of elements $\mathcal{D} = \{x_i \in \mathcal{X}| i \in [n] \}$ but the metric $d^\star$ is unkown to us. 
+  Furthermore we assume that there are at least 2 elements for each leaf in the tree. 
+\item
+  Let $c: \mathcal{X} \times \mathcal{V} \to \{0,1\}$ be a function which assigns labe $1$ if point $x \in \mathcal{X}$ is a child of node $v \in \mathcal{V}$ and label $0$ otherwise.
+  Then we assume that under $d^\star$. 
+  \[ \sum_{x \in \mathcal{D}} \sum_{v \in V} \mathbbm{1}\left\{f(x,v) = f(\text{argmin}_x^* d^*(x^*,x),v)\right\} \] 
+  This is to say that a 1-KNN classifier would do a perfect job at classifying points in the hierarchies. 
+\end{enumerate}
+\paragraph{Goal}
+  To find an algorithm that can learn mahalanobis metric in an online fashion by using feedback in the form of the oracle $\mu$ assuing that $\mathcal{T}$ is knonw. 
+  Furthermore, this metric $d$ should satisfy 
+  \[ \sum_{x \in \mathcal{D}} \sum_{v \in V} \mathbbm{1}\left\{f(x,v) = f(\text{argmin}_x^* d(x^*,x),v)\right\} \] 
+\paragraph{Idea}  
+We propose to use the following skeleton for the algorithm. Let $B$ refer to a bandit algorithm which recieves two points $x,y$, previous rewards and returns a metric. Let 
+$A(\mathcal{D})$ be a an algorithm which samples points from $\mathcal{D}$ in some way. 
+Then the algorithm can be stated as follows:
+
+\begin{algorithm}
+\caption{Algorithm skeleton}\label{alg:cap}
+\begin{algorithmic}
+  \While{Stop criterion not met}
+    \State $x, y \gets \text{sampled from } A(\mathcal{D})$
+    \State $d \gets B(x,y)$
+    \State $r \gets \mu(d)$
+    \State $B$.update(r)
+    \State $A(\mathcal{D})$.update(r,d)
+  \EndWhile 
+\end{algorithmic}
+\end{algorithm}
+In words, our idea is to use an existing contextual bandit algorithm that recieves as context two points provided by $A$ and then returns a metric which recieves some feedback from a 
+reward function. 
+Said differently, our goal is to reduce metric learning to bandits. 
+Most of our work would be in designing both $\mathcal{A}$ and $\mu$ but we would need some work to decide what contextual bandit algorithm to use.
+In particular,  it is not clear if linear bandits are the right approach because of the positive definite constraint on the metric and the 
+shape of the reward function. 
+
+\subsection{Fall back proposal}
+\label{fallback-prop}
+As a fallback project we intend to provide a literature survey and empirical evaluation of various algorithms which share similarities with ours or have desirable properties which we believe
+we could take inspiration from. We believe that the evaluation of these algorithms should be done on a common dataset of gaussian clusters, CIFAR-10, MNIST when possible and on synthetic datasets relevant to the specific algorithms.
+Below we describe the algorithms we intend to evaluate. 
+
+\paragraph{Structural query-by-committee} 
+Query-by-committee  is a popular active learning algorithm that has been well studied for data labeling problems \cite{QBC}.
+In \cite{SQBC} an extension is proposed which handles settings on which there is strcuture. 
+In our case this structure is a class $\mathcal{F}$ of metrics on a space $\mathcal{X}$. 
+Although the paper has a special focus on clustering, the framework presented can be adapted to metric learning as we intend to do. 
+Moreover, we would think this would be an interesting contribution as there were no empirical experiments in such a setting in the original paper.
+
+\paragraph{Bayesian Active Metric Learning} 
+In \cite{bayesian-metric} the authors propose an algorithm for active metric learning in a setting where feedback from the experts exists via equivalence and inequivalence constraints (should the two points be together or not).
+This algorithm uses variational inference for updates, and a laplacian approximation to compute entropies used to determine which points to query. 
+This would be helpful for our setting because it provides a framework which we could use to expand Structural Query by Committee to handle metrics, and it would provide inspiration for query selection (i.e designing  $A$).
+
+
+
+
+
+
+
+\bibliography{refs}
+\bibliographystyle{plain}
+
+\end{document}
+
+
+
