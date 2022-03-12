@@ -18,7 +18,7 @@
 
 
 
-\title{Active metric learning}
+\title{Active Heirarchical Metric Learning}
 
 \author{
   Nicolas Beltran\\
@@ -39,11 +39,17 @@
 \maketitle
 
 \begin{abstract}
+    Many problems require a well defined notion of a distance between points in space.
+Constructing or finding such a measure falls into the field of metric learning.
+Although many algorithms exist in the field when a learner has access to a fixed dataset,  there is room for improvement in terms of samples efficiency that the learner needs to know, imposition of desired structure, especially when the data appears in an \textit{online} manner. 
+We propose a project that reduces the problem of online/active metric learning to bandits. In case our plan turn out to be too ambitious, we have a fallback - an empirical investigation of some algorithms that have dealt with the problem in an online setting or in situations where the learner can selective query the points that it wants to know information about.
 
 \end{abstract}
 
 \section{Introduction}
+Metric learning consists in smartly adjusting a distance or similarity function using using data. The resulting measure is well suited to the problem of interest and can lead to significant improvement in downstream tasks like classification, regression or ordering \cite{DBLP:journals/corr/abs-1209-1086}. Lots of methods focus on learning a Mahalanobis distance. This can be seen as finding a linear projection of the data. There has been work done especially in online metric learning algorithms that can offer guarantees in the form of regret bounds \cite{onlinemetric}. Most metric learning algorithms however work with very granular levels of data. Online metric learning algorithms like POLA and LEGO develop online methods that work with similarity and dissimilarity sets. While these algorithms succeed in capturing local structure in the data embedding space, due to the nature of the provided context they fail to encapsulate the general global structure that the data is being sampled from. Many practical settings of metric learning problems allow active access to queryable data. Furthermore, the complexity of such problems requires that the metric imposed on the data not only be accurate on points chosen close by, but also to interpret the meaning of distance between datapoints that are chosen from very different localities. The goal for this project is to devise a metric learning algorithm in an online setting, which successfully preserves the \textit{global} structure of the data in the embedding space. An online algorithm receives requests one by one and needs to "respond" each request immediately without knowing future requests. We further want to analyse the regret of our formulation. 
 
+In general, learning a nonlinear transformation is difficult — unlike linear transformations, which can be expressed as a matrix of parameters, the set of nonlinear transformations is difficult to parametrize. To begin with, we will restrict ourselves to the set of linear transformations, maybe further delving into kernelized linear transformations. We will begin by making some strong distributional assumptions, such as the data distribution being a mixture of Gaussians with each Gaussian as one of the clusters. Our notion of global structure will be encoded in some object like a tree, where ideas of intercluster and intracluster distance can be formalised.
 % Goals for this section
 % - Provide a general introduction for metric learning. (some math details might be useful)
 % - Justify the importance of considering an active online setting.
@@ -75,15 +81,15 @@ Our more ambitious goal is to design an algorithm that can learn a mahalanobis m
   We have access to a finite set of elements $\mathcal{D} = \{x_i \in \mathcal{X}| i \in [n] \}$ but the metric $d^\star$ is unkown to us. 
   Furthermore we assume that there are at least 2 elements for each leaf in the tree. 
 \item
-  Let $c: \mathcal{X} \times \mathcal{V} \to \{0,1\}$ be a function which assigns labe $1$ if point $x \in \mathcal{X}$ is a child of node $v \in \mathcal{V}$ and label $0$ otherwise.
+  Let $f: \mathcal{X} \times \mathcal{V} \to \{0,1\}$ be a function which assigns labe $1$ if point $x \in \mathcal{X}$ is a child of node $v \in \mathcal{V}$ and label $0$ otherwise.
   Then we assume that under $d^\star$. 
-  \[ \sum_{x \in \mathcal{D}} \sum_{v \in V} \mathbbm{1}\left\{f(x,v) = f(\text{argmin}_x^* d^*(x^*,x),v)\right\} \] 
+  \[0 = \sum_{x \in \mathcal{D}} \sum_{v \in V} \mathbbm{1}\left\{f(x,v) \neq f(\text{argmin}_x^* d^*(x^*,x),v)\right\} \] 
   This is to say that a 1-KNN classifier would do a perfect job at classifying points in the hierarchies. 
 \end{enumerate}
 \paragraph{Goal}
   To find an algorithm that can learn mahalanobis metric in an online fashion by using feedback in the form of the oracle $\mu$ assuing that $\mathcal{T}$ is knonw. 
   Furthermore, this metric $d$ should satisfy 
-  \[ \sum_{x \in \mathcal{D}} \sum_{v \in V} \mathbbm{1}\left\{f(x,v) = f(\text{argmin}_x^* d(x^*,x),v)\right\} \] 
+  \[0 = \sum_{x \in \mathcal{D}} \sum_{v \in V} \mathbbm{1}\left\{f(x,v) \neq f(\text{argmin}_x^* d^*(x^*,x),v)\right\} \] 
 \paragraph{Idea}  
 We propose to use the following skeleton for the algorithm. Let $B$ refer to a bandit algorithm which recieves two points $x,y$, previous rewards and returns a metric. Let 
 $A(\mathcal{D})$ be a an algorithm which samples points from $\mathcal{D}$ in some way. 
@@ -126,8 +132,11 @@ In \cite{bayesian-metric} the authors propose an algorithm for active metric lea
 This algorithm uses variational inference for updates, and a laplacian approximation to compute entropies used to determine which points to query. 
 This would be helpful for our setting because it provides a framework which we could use to expand Structural Query by Committee to handle metrics, and it would provide inspiration for query selection (i.e designing  $A$).
 
+\paragraph{Stochastic Triplet Embedding}
+Stochastic selection rules have had great success in dimensionality reduction. In \cite{6349720} the authors use a stochastic neighbor approach as implemented in t-sne on triplet data of the form, "A is more similar to B than C". The authors show preservation of local structure in lower dimensional embeddings via this formulation. We want to mimic the way partial ordering information is used to design an embedding, to use sexpert signal on similar lines to construct a metric learning algorithm. It might be possible to adapt T-ste to an online setting, and that might serve as an exploratory direction for our project. 
 
-
+\paragraph{Low-dimensional embedding using adaptively selected ordinal data}
+In \cite{6120287}, the authors study the problem of learning an embedding of n objects into d-dimensional Euclidean space. Like  in \cite{6349720}, they focus on comparisons of the type “A is similar to B than C.” This paper explores the lower bound on the number of comparisons that are needed to create such an embedding. They further create an algorithm that tries to achieve that bound by smart query selection. An empirical analysis of this algorithm will serve us well as part of our fallback, while we plan to build on the query selection algorithm used in this paper to formulate $A(\mathcal{D})$ that samples datapoints for our bandit formulation. 
 
 
 
