@@ -1,7 +1,3 @@
-# pan-hpf
-
-A small reorganization of panHPF
-
 ## How to install:
 Run the following sequence of all commands
 ```
