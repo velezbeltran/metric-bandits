@@ -1,0 +1,43 @@
+\begin{thebibliography}{1}
+
+\bibitem{DBLP:journals/corr/abs-1209-1086}
+Aur{\'{e}}lien Bellet and Amaury Habrard.
+\newblock Robustness and generalization for metric learning.
+\newblock {\em CoRR}, abs/1209.1086, 2012.
+
+\bibitem{6120287}
+Kevin~G. Jamieson and Robert~D. Nowak.
+\newblock Low-dimensional embedding using adaptively selected ordinal data.
+\newblock In {\em 2011 49th Annual Allerton Conference on Communication,
+  Control, and Computing (Allerton)}, pages 1077--1084, 2011.
+
+\bibitem{QBC}
+H.~S. Seung, M.~Opper, and H.~Sompolinsky.
+\newblock Query by committee.
+\newblock In {\em Proceedings of the Fifth Annual Workshop on Computational
+  Learning Theory}, COLT '92, page 287–294, New York, NY, USA, 1992.
+  Association for Computing Machinery.
+
+\bibitem{onlinemetric}
+Shai Shalev-Shwartz, Yoram Singer, and Andrew~Y. Ng.
+\newblock Online and batch learning of pseudo-metrics.
+\newblock In {\em Proceedings of the Twenty-First International Conference on
+  Machine Learning}, ICML '04, page~94, New York, NY, USA, 2004. Association
+  for Computing Machinery.
+
+\bibitem{SQBC}
+Christopher Tosh and Sanjoy Dasgupta.
+\newblock Structural query-by-committee.
+\newblock {\em CoRR}, abs/1803.06586, 2018.
+
+\bibitem{6349720}
+Laurens van~der Maaten and Kilian Weinberger.
+\newblock Stochastic triplet embedding.
+\newblock In {\em 2012 IEEE International Workshop on Machine Learning for
+  Signal Processing}, pages 1--6, 2012.
+
+\bibitem{bayesian-metric}
+Liu Yang, Rong Jin, and Rahul Sukthankar.
+\newblock Bayesian active distance metric learning, 2012.
+
+\end{thebibliography}
