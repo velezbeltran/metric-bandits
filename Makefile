@@ -30,7 +30,7 @@ install: virtualenv
 
 uninstall:
 	@echo "Uninstalling metric_bandits in the system"
-	$(VENV_PIP) uninstall metric_bandits"
+	$(VENV_PIP) uninstall metric_bandits
 	@echo "Succesfully uninstalled metric_bandits"
 
 FORCE: ;
