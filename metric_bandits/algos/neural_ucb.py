@@ -10,6 +10,63 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from metric_bandits.algos.base_algo import BaseAlgo
+
+
+class NeuralUCB(BaseAlgo):
+    def __init__(
+        self,
+        context_dim,
+        hidden_dim,
+        depth,
+        dropout,
+        regularization,
+        step_size,
+        num_steps,
+    ):
+        self.regularization = regularization
+        self.step_size = step_size
+        self.num_steps = num_steps
+        self.depth = depth
+        self.model = BaseNN(context_dim, hidden_dim, depth, dropout)
+
+    def choose_action(self, actions):
+        """
+        actions is a list-like object dictionary and contains the available actions
+        """
+        ucb_val_grads = []
+        for action in actions:
+            ucb_val_grads.append(self.get_val_grad(action))
+
+        return actions[0]
+
+    def update(self, reward):
+        """
+        Updates the model
+        """
+        return None
+
+    def get_val_grad(self, x):
+        """
+        Returns the predicted value and the gradient of the neural network
+        """
+        self.model.zero_grad()
+        val = self.model(x)
+        grad = torch.autograd.grad(val, self.model.parameters())
+
+    def reset(self):
+        """
+        Resets the model
+        """
+        self._Z = torch.eye(self.model.num_params)
+
+    @property
+    def Z(self):
+        """
+        Returns the norm parameter
+        """
+        return None
+
 
 class BaseNN(nn.Module):
     """
@@ -29,7 +86,7 @@ class BaseNN(nn.Module):
 
         layers = [nn.Linear(context_dim, hidden_dim)]
         for i in range(depth - 1):
-            layers.append(nn.Linear(context_dim, hidden_dim))
+            layers.append(nn.Linear(hidden_dim, hidden_dim))
             layers.append(nn.ReLU())
         layers.append(nn.Linear(hidden_dim, 1))
 
@@ -40,11 +97,20 @@ class BaseNN(nn.Module):
         """
         Forward pass of the neural network
         """
+        x = self.make_batch(x)
         for i in range(self.depth):
             x = self.layers[i](x)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout)
         x = self.layers[-1](x)
+        return x
+
+    def make_batch(self, x):
+        """
+        Makes x into a batch if it doesn't already have batch dimension
+        """
+        if len(x.shape) == 1:
+            x = x.unsqueeze(0)
         return x
 
     def init_weights(self):
@@ -63,52 +129,3 @@ class BaseNN(nn.Module):
         if not hasattr(self, "_num_params"):
             self._num_params = sum(p.numel() for p in self.parameters())
         return self._num_params
-
-
-class NeuralUCB:
-    def __init__(
-        self,
-        context_dim,
-        hidden_dim,
-        depth,
-        dropout,
-        regularization,
-        step_size,
-        num_steps,
-    ):
-        self.regularization = regularization
-        self.step_size = step_size
-        self.num_steps = num_steps
-        self.depth = depth
-        self.model = BaseNN(context_dim, hidden_dim, depth, dropout)
-
-    def choose_action(self, actions):
-        """
-        actions is a dictionary and contains the available actions
-        """
-        ucb_values = {}
-        ucb_grads = {}
-        for action in actions:
-            val, grad = self.get_val_grad(actions[action])
-
-    def get_val_grad(self, x):
-        """
-        Returns the predicted value and the gradient of the neural network
-        """
-        self.model.zero_grad()
-        val = self.model(x)
-        grad = torch.autograd.grad(val, self.model.parameters())
-        print(val, grad)
-
-    def reset(self):
-        """
-        Resets the model
-        """
-        self._Z = torch.eye(self.model.num_params)
-
-    @property
-    def Z(self):
-        """
-        Returns the norm parameter
-        """
-        return None

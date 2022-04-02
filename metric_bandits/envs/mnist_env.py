@@ -1,3 +1,9 @@
+"""
+Convention
+----------
+last dimension of action is the proposed distance.
+"""
+
 import torch
 
 from metric_bandits.constants.constants import SEED
@@ -29,7 +35,7 @@ class MNISTEnv(BaseEnv):
         as a vector of (img, img, prop_distance). Every `persistence`
         a new set of actions is returned
         """
-        self.real_distances = {}  # keeps track of real distances
+        self.real_distances = {}  # keeps track of distances to obtain reward
 
         # Get new set of actions
         if self.t % self.persistence == 0:
@@ -42,8 +48,14 @@ class MNISTEnv(BaseEnv):
                 for imgy, labely in batch:
                     for prop_distance in range(10):
                         if not torch.eq(imgx, imgy).all():
-                            self.current_actions.append((imgx, imgy, prop_distance))
-                            self.real_distances[(imgx, imgy)] = abs(labelx - labely)
+                            context_partial = torch.cat(
+                                (imgx.flatten(), imgy.flatten())
+                            )
+                            context_full = torch.cat(
+                                (context_partial, torch.tensor([prop_distance]))
+                            )
+                            self.current_actions.append(context_full)
+                            self.real_distances[context_partial] = abs(labelx - labely)
 
         return self.current_actions
 
@@ -51,8 +63,9 @@ class MNISTEnv(BaseEnv):
         """
         Returns the reward for the action taken
         """
-        imgx, imgy, prop_distance = action
-        real_distance = self.real_distances[(imgx, imgy)]
+        return 1.0
+        context_partial, prop_distance = action[:-1], action[-1]
+        real_distance = self.real_distances[context_partial]
         reward = 1 - (real_distance - prop_distance) / 10
         self.t += 1
         return reward

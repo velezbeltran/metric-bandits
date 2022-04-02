@@ -52,11 +52,10 @@ class BaseEnv:
         Trains the algorithm
         """
         self.mode = "train"
-        for _ in tqdm(range(self.T)):
+        for _ in (pbar := tqdm(range(self.T))):
             actions = self.next_actions()
             action = self.algo.choose_action(actions)
             r = self.step(action)
-
             self.algo.update(r)
             self.update(r)
 
