@@ -12,3 +12,6 @@ DATA_PATH = os.path.join(ROOT_PATH, "data")
 # CIFAR_10 paths
 CIFAR_10_PATH = os.path.join(DATA_PATH, "cifar-10-batches-py")
 CIFAR_10_TRIPLETS_PATH = os.path.join(DATA_PATH, "cifar_triplets")
+
+# MNIST paths
+MNIST_PATH = os.path.join(DATA_PATH, "mnist")
