@@ -10,6 +10,7 @@ from math import sqrt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
 
 from metric_bandits.algos.base import BaseAlgo
 from metric_bandits.utils.math import sherman_morrison
@@ -25,7 +26,7 @@ class NeuralUCB(BaseAlgo):
         regularization,
         step_size,
         num_steps,
-        train_freq=50,
+        train_freq=100,
         exploration_param=0.1,
     ):
         self.regularization = regularization
@@ -76,9 +77,9 @@ class NeuralUCB(BaseAlgo):
         self.Z_inv = sherman_morrison(self.Z_inv, prev_grad)
 
         # decide whether to train the model
-        if self.t % self.num_steps == 0:
-            self.train()
         self.t += 1
+        if self.t % self.train_freq == 0:
+            self.train()
 
     def get_val_grad(self, x):
         """
@@ -103,19 +104,22 @@ class NeuralUCB(BaseAlgo):
         Trains the model
         """
         inputs = torch.stack(self.contexts_played)
-        tgts = torch.tensor(self.rewards)
+        tgts = torch.tensor(self.rewards).unsqueeze(-1)
         dataset = torch.utils.data.TensorDataset(inputs, tgts)
         loader = torch.utils.data.DataLoader(
             dataset, batch_size=self.train_freq, shuffle=True
         )
 
-        for epoch in range(self.num_steps):
+        for epoch in (pbar := tqdm(range(self.num_steps))):
             for x, y in loader:
+                assert x.shape[0] == self.train_freq
+                assert y.shape[0] == self.train_freq
                 self.optimizer.zero_grad()
                 val = self.model(x)
-                loss = F.mse_loss(val, y)
+                loss = F.mse_loss(val, y, reduction="mean")
                 loss.backward()
                 self.optimizer.step()
+                pbar.set_description(f"Loss: {loss.item():.4f}")
 
     def reset(self):
         """

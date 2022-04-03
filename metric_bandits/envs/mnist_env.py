@@ -76,7 +76,7 @@ class MNISTEnv(BaseEnv):
         """
         real_distance = self.real_distances[action]
         prop_distance = self.proposed_distances[action]
-        reward = 1 - (real_distance - prop_distance) ** 2 / 10
+        reward = 1 - abs((real_distance - prop_distance) / 10)
         self.t += 1
         return reward
 

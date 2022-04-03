@@ -28,12 +28,14 @@ def make_pca_mnist(mnist, n_components=PCA_DIMS):
         labels.append(label)
 
     data = np.array(data)
+    # center the data and scale it
+    data = (data - data.mean(axis=0)) / (data.std(axis=0) + 1e-8)
 
     # import model if exists otherwise make one and save
     if os.path.exists(MNIST_PCA_MODEL_PATH):
         pca = pkl.load(open(MNIST_PCA_MODEL_PATH, "rb"))
     else:
-        pca = PCA(n_components=10)
+        pca = PCA(n_components=n_components)
         pca.fit(data)
         pkl.dump(pca, open(MNIST_PCA_MODEL_PATH, "wb"))
     data = pca.transform(data)

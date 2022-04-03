@@ -1,1 +1,1 @@
-PCA_DIMS = 10
+PCA_DIMS = 5
