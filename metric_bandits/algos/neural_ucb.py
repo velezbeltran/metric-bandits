@@ -5,12 +5,14 @@ the paper. Name of variables are chosen so as to agree with the paper.
 s T, regularization parameter λ, exploration parameter ν, confidence parameter δ, norm
 parameter S, step size η, number of gradient descent steps J, network width m, network depth L.
 """
+from math import sqrt
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from metric_bandits.algos.base_algo import BaseAlgo
+from metric_bandits.algos.base import BaseAlgo
+from metric_bandits.utils.math import sherman_morrison
 
 
 class NeuralUCB(BaseAlgo):
@@ -23,55 +25,122 @@ class NeuralUCB(BaseAlgo):
         regularization,
         step_size,
         num_steps,
+        train_freq=50,
+        exploration_param=0.1,
     ):
         self.regularization = regularization
         self.step_size = step_size
         self.num_steps = num_steps
         self.depth = depth
+        self.exploration_param = exploration_param
+        self.train_freq = train_freq
+
+        # Set up model and optimizer
         self.model = BaseNN(context_dim, hidden_dim, depth, dropout)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=step_size)
+
+        # state of the algorithm
+        self.Z_inv = None
+        self.t = 0
+
+        # parameters to keep track of
+        self.last_action = None
+        self.rewards = []
+        self.contexts_played = []
 
     def choose_action(self, actions):
         """
         actions is a list-like object dictionary and contains the available actions
         """
-        ucb_val_grads = []
+        self.ucb_val_grads, self.ucb_estimate = {}, {}
         for action in actions:
-            ucb_val_grads.append(self.get_val_grad(action))
+            val, grad = self.get_val_grad(actions[action])
+            self.ucb_val_grads[action] = (val, grad)
+            self.ucb_estimate[action] = val + self.optimist_reward(grad)
 
-        return actions[0]
+        # return the key with the highest value
+        self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
+        self.contexts_played.append(actions[self.last_action])
+        return self.last_action
 
     def update(self, reward):
         """
         Updates the model
         """
-        return None
+        self.rewards.append(reward)
+
+        # update our confidence matrix
+        prev_grad = self.ucb_val_grads[self.last_action][1] / sqrt(
+            self.model.num_params
+        )
+        self.Z_inv = sherman_morrison(self.Z_inv, prev_grad)
+
+        # decide whether to train the model
+        if self.t % self.num_steps == 0:
+            self.train()
+        self.t += 1
 
     def get_val_grad(self, x):
         """
         Returns the predicted value and the gradient of the neural network
+        as a one dimensional column vector.
         """
         self.model.zero_grad()
         val = self.model(x)
         grad = torch.autograd.grad(val, self.model.parameters())
+        g = torch.cat([g.flatten() for g in grad])
+        return val, g.unsqueeze(-1)
+
+    def optimist_reward(self, grad):
+        with torch.no_grad():
+            val = self.exploration_param * torch.sqrt(
+                grad.T @ self.Z_inv @ grad / self.model.num_params
+            )
+            return val
+
+    def train(self):
+        """
+        Trains the model
+        """
+        inputs = torch.stack(self.contexts_played)
+        tgts = torch.tensor(self.rewards)
+        dataset = torch.utils.data.TensorDataset(inputs, tgts)
+        loader = torch.utils.data.DataLoader(
+            dataset, batch_size=self.train_freq, shuffle=True
+        )
+
+        for epoch in range(self.num_steps):
+            for x, y in loader:
+                self.optimizer.zero_grad()
+                val = self.model(x)
+                loss = F.mse_loss(val, y)
+                loss.backward()
+                self.optimizer.step()
 
     def reset(self):
         """
         Resets the model
         """
-        self._Z = torch.eye(self.model.num_params)
-
-    @property
-    def Z(self):
-        """
-        Returns the norm parameter
-        """
-        return None
+        self.Z_inv = torch.eye(self.model.num_params)
+        print("Reset model")
 
 
 class BaseNN(nn.Module):
     """
     Implements an extremely simple neural network with initialization as explained in
     the paper.
+
+    Parameters
+    ----------
+    context_dim : int
+        Dimension of the context vector
+    hidden_dim : int
+        Dimension of the hidden layer
+    depth : int
+        Depth of the network does not include the last layer.
+        The last layer is always a linear layer.
+    Dropout : float
+        Dropout probability.
     """
 
     def __init__(self, context_dim, hidden_dim, depth, dropout):
@@ -84,7 +153,12 @@ class BaseNN(nn.Module):
         self.dropout = dropout
         self.activation = F.relu
 
-        layers = [nn.Linear(context_dim, hidden_dim)]
+        layers = [
+            nn.Linear(
+                context_dim,
+                hidden_dim,
+            )
+        ]
         for i in range(depth - 1):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             layers.append(nn.ReLU())

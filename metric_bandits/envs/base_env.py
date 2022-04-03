@@ -20,13 +20,14 @@ class BaseEnv:
         self.t = 0  # current round
         self.mode = "train"  # mode of the environment (train/test)
 
-        self.regret = [0]  # keeps track of the regret per round
+        self.cum_regrets = [0]  # keeps track of the regret per round
+        self.rewards = []  # keeps track of the rewards per round
 
     def update(self, r):
         """
         Updates the environment
         """
-        self.regret.append(r + self.regret[-1])
+        raise NotImplementedError
 
     def next_actions(self):
         """
@@ -58,6 +59,8 @@ class BaseEnv:
             r = self.step(action)
             self.algo.update(r)
             self.update(r)
+            # print the regret nicely
+            pbar.set_description(f"Regret/time: {self.cum_regrets[-1]/self.t:.2f}")
 
     @property
     def mode(self):
