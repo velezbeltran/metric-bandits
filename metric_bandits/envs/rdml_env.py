@@ -7,6 +7,7 @@ last dimension of action is the +1 similarity / -1 dissimilarity.
 import uuid
 from metric_bandits.envs.base_env import BaseEnv
 from metric_bandits.data.wine import WINE
+from metric_bandits.constants.constants import SEED
 import numpy as np
 
 class WineEnv(BaseEnv):
@@ -30,8 +31,7 @@ class WineEnv(BaseEnv):
         Returns a list of next available actions which are represented
         as a vector of (data_1, data_2, similar(+1)/dissimilar(-1)). 
         """
-        cur_idx = self.T
-
+        cur_idx = self.t % int(len(self.data) * 0.8 - 1) 
         # choose the next batch of images to use for training
         b_idxs = self.idx[self.mode][cur_idx : cur_idx + self.batch_size]
         batch = [self.data[i] for i in b_idxs]
@@ -40,12 +40,11 @@ class WineEnv(BaseEnv):
         self.current_actions = {}
         self.proposed_distances = {}
         self.real_distances = {}
-
         # produce the actions
         for data_x, label_x in batch:
             for data_y, label_y in batch:
-                for prop_distance in [+1,-1]:
-                    if not data_x == data_y:
+                if not np.array_equal(data_x, data_y):
+                    for prop_distance in [+1,-1]:
                         context_partial = np.concatenate(
                             [data_x, 
                             data_y]
@@ -65,6 +64,7 @@ class WineEnv(BaseEnv):
         """
         Returns the reward for the action taken
         """
+
         real_distance = self.real_distances[action]
         prop_distance = self.proposed_distances[action]
         reward = 1 if real_distance == prop_distance else 0
@@ -78,7 +78,7 @@ class WineEnv(BaseEnv):
         Initializes the data loader
         """
         train_len = int(len(self.data) * 0.8)
-        permutation = np.randperm(len(self.data))
+        permutation = np.random.RandomState(seed=SEED).permutation(len(self.data))
 
         self.idx = {}
         self.idx["train"] = permutation[:train_len]
