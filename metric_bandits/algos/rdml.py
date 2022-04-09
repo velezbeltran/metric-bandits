@@ -70,3 +70,9 @@ class RDML(BaseAlgo):
             self.metric = self.metric - _lambda * (- y_act) * x_diff @ x_diff.T
 
 
+    def reset(self):
+        """
+        Resets the model
+        """
+        self.metric = 0
+        print("Reset model.")
