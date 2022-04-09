@@ -9,6 +9,8 @@ the paper:
 from metric_bandits.algos.base import BaseAlgo
 from metric_bandits.utils.math import square_matrix_norm
 
+import numpy as np 
+
 class RDML(BaseAlgo):
     def __init__(
         self,
@@ -18,6 +20,7 @@ class RDML(BaseAlgo):
         self.metric = 0
         self.last_action = None
         self.contexts_played = []
+        self.rewards = []
 
     def choose_action(self, actions):
         """
@@ -37,3 +40,33 @@ class RDML(BaseAlgo):
                 break
 
         return self.last_action
+
+    def update(self, reward):
+        """
+        Updates the model
+        """
+        self.rewards.append(reward)
+
+        # If reward is 1, then the identification was correct
+        # metric stays the same.
+        if reward == 1:
+            self.metric = self.metric
+        
+        # Else we were wrong. We update the matrix 
+        else:
+            _lambda = self.learning_rate
+
+            # If y_act = +1, means y was -1. _lambda stays the same
+            # If y_act = -1, means y was +1, then we update update lambda via the following
+            half = len(self.last_action)//2
+            x_1, x_2, y_act = self.last_action[:half], self.last_action[half:-1], self.last_action[-1]
+            x_diff = x_1 - x_2
+            if y_act == -1:
+                _lambda = min(
+                            self.learning_rate,
+                             1 / square_matrix_norm(np.linalg.inv(self.metric), x_diff)
+                             )
+            # Now update the metric:
+            self.metric = self.metric - _lambda * (- y_act) * x_diff @ x_diff.T
+
+
