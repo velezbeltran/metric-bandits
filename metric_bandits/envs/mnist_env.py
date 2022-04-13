@@ -95,7 +95,16 @@ class MNISTEnv(BaseEnv):
         number_arms = len(self.granularity)  # 10 possible distances for neural UCB
         v_size = len(vector)
         full_v = torch.zeros(v_size * number_arms)
-        full_v[prop_distance * v_size : (prop_distance + 1) * v_size] = vector
+
+        # temporary fix to accomodate for [-1,+1] similarity measures
+        ind_prop = prop_distance
+
+        # If LinUCB using [-1,+1], change index of -1 to 0:
+        if isinstance(self.algo, LinUCB):
+            if prop_distance == -1:
+                ind_prop = 0
+
+        full_v[ind_prop * v_size : (ind_prop + 1) * v_size] = vector
         return full_v
 
     def init_data(self):

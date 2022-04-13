@@ -7,6 +7,10 @@ from metric_bandits.algos.base import BaseAlgo
 import numpy as np
 from metric_bandits.utils.math import _inv, square_matrix_norm
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 class LinUCB(BaseAlgo):
     def __init__(
         self,
@@ -39,10 +43,10 @@ class LinUCB(BaseAlgo):
         if self.t == 0:
             # Get the dimension of (x,x',a) vector
             self.dim = len(list(actions.values())[0])
-            self.A = np.identity(self.dim)
-            self.b = np.zeros(self.dim)
+            self.A = torch.eye(self.dim)
+            self.b = torch.zeros(self.dim)
         
-        self.theta = _inv(self.A) @ self.b
+        self.theta = torch.from_numpy(_inv(self.A)) @ self.b
 
         # Loop through all available action, context pairs
         for action in actions:
@@ -57,7 +61,7 @@ class LinUCB(BaseAlgo):
 
     def get_ucb_estimate(self, context):
         mean = self.theta.T @ context
-        upper_dev = self.beta * sqrt(square_matrix_norm(_inv(self.A), context))
+        upper_dev = self.beta * sqrt(square_matrix_norm(torch.from_numpy(_inv(self.A)), context))
 
         return mean + upper_dev
 
