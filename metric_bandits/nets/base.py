@@ -1,11 +1,12 @@
 import torch.nn as nn
 import torch.nn.functional as F
+from utils.nn import make_batch
 
 
 class BaseNN(nn.Module):
     """
     Implements an extremely simple neural network with initialization as explained in
-    the paper.
+    the paper and regular forward pass.
 
     Parameters
     ----------
@@ -48,20 +49,12 @@ class BaseNN(nn.Module):
         """
         Forward pass of the neural network
         """
-        x = self.make_batch(x)
+        x = make_batch(x)
         for i in range(self.depth):
             x = self.layers[i](x)
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout)
         x = self.layers[-1](x)
-        return x
-
-    def make_batch(self, x):
-        """
-        Makes x into a batch if it doesn't already have batch dimension
-        """
-        if len(x.shape) == 1:
-            x = x.unsqueeze(0)
         return x
 
     def init_weights(self):
