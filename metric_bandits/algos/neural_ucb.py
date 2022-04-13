@@ -16,13 +16,11 @@ from metric_bandits.utils.math import sherman_morrison
 
 
 class NeuralUCB(BaseAlgo):
-    def __init__(
-        self, model, regularization, step_size, num_steps, train_freq, exploration_param
-    ):
-        self.regularization = regularization
+    def __init__(self, model, reg, step_size, num_steps, train_freq, explore_param):
+        self.reg = reg
         self.step_size = step_size
         self.num_steps = num_steps
-        self.exploration_param = exploration_param
+        self.explore_param = explore_param
         self.train_freq = train_freq
 
         # Set up model and optimizer
@@ -83,7 +81,7 @@ class NeuralUCB(BaseAlgo):
 
     def optimist_reward(self, grad):
         with torch.no_grad():
-            val = self.exploration_param * torch.sqrt(
+            val = self.explore_param * torch.sqrt(
                 grad.T @ self.Z_inv @ grad / self.model.num_params
             )
             return val
@@ -116,3 +114,8 @@ class NeuralUCB(BaseAlgo):
         """
         self.Z_inv = torch.eye(self.model.num_params)
         print("Reset model")
+
+    def save_model(self, path):
+        """
+        Saves the model
+        """

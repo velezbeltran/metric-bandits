@@ -166,22 +166,29 @@ class MNISTSimEnv(MNISTEnv):
 
             # produce the actions
             for i in range(len(batch)):
-                for j in range(i, len(batch)):
+                for j in range(i + 1, len(batch)):
                     for a in self.possible_actions:
                         imgx, labelx = batch[i]
                         imgy, labely = batch[j]
                         imgx, imgy = imgx.flatten(), imgy.flatten()
                         context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
                         self.current_actions[context_partial] = context_partial
-                        self.real_label[context_partial] = (labelx == labely).float()
+                        self.real_label[context_partial] = 2 * int(labelx == labely) - 1
         return self.current_actions
 
     def step(self, action):
         """
         Returns the reward for the action taken
         """
-        prop_sim = action[-1]
+        prop_sim = self.current_actions[action][-1]
         real_sim = self.real_label[action]
         reward = prop_sim * real_sim
         self.t += 1
         return reward
+
+    def update(self, r):
+        """
+        Updates the environment
+        """
+        self.rewards.append(r)
+        self.cum_regrets.append((1 - r) + self.cum_regrets[-1])

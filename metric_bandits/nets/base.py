@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from utils.nn import make_batch
+
+from metric_bandits.utils.nn import make_batch
 
 
 class BaseNN(nn.Module):
@@ -21,7 +22,7 @@ class BaseNN(nn.Module):
         Dropout probability.
     """
 
-    def __init__(self, context_dim, hidden_dim, depth, dropout):
+    def __init__(self, context_dim, hidden_dim, out_dim, depth, dropout):
         assert depth > 0, "Depth must be greater than 0"
 
         super(BaseNN, self).__init__()
@@ -29,6 +30,7 @@ class BaseNN(nn.Module):
         self.hidden_dim = hidden_dim
         self.depth = depth
         self.dropout = dropout
+        self.out_dim = out_dim
         self.activation = F.relu
 
         layers = [
@@ -37,10 +39,10 @@ class BaseNN(nn.Module):
                 hidden_dim,
             )
         ]
-        for i in range(depth - 1):
+        for _ in range(depth - 1):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
             layers.append(nn.ReLU())
-        layers.append(nn.Linear(hidden_dim, 1))
+        layers.append(nn.Linear(hidden_dim, out_dim))
 
         self.layers = nn.ModuleList(layers)
         self.init_weights()
