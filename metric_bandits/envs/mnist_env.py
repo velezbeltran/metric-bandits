@@ -14,7 +14,7 @@ from metric_bandits.envs.base_env import BaseEnv
 
 
 class MNISTEnv(BaseEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca=False):
+    def __init__(self, algo, T, batch_size, persistence, pca_dims=None):
         """
         Initializes the environment
 
@@ -24,7 +24,7 @@ class MNISTEnv(BaseEnv):
         """
         # set seed
         torch.manual_seed(SEED)
-        data = MNIST if not pca else make_pca_mnist(MNIST)
+        data = MNIST if not pca_dims else make_pca_mnist(MNIST, pca_dims)
         super().__init__(data, algo, T)
         self.persistence = persistence
         self.batch_size = batch_size
@@ -68,11 +68,11 @@ class MNISTEnv(BaseEnv):
 
 
 class MNISTNumDistEnv(MNISTEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca=False):
+    def __init__(self, algo, T, batch_size, persistence, pca_dims=None):
         """
         Environment for doing MNIST using numerical distances
         """
-        super().__init__(algo, T, batch_size, persistence, pca)
+        super().__init__(algo, T, batch_size, persistence, pca_dims)
 
     def next_actions(self):
         """
@@ -134,7 +134,7 @@ class MNISTNumDistEnv(MNISTEnv):
 
 
 class MNISTSimEnv(MNISTEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca=False):
+    def __init__(self, algo, T, batch_size, persistence, pca_dims=None):
         """
         Mnist environment
 
@@ -142,7 +142,7 @@ class MNISTSimEnv(MNISTEnv):
             batch_size: size of the batch to use for training
             persistence: how many rounds to keep the same dataset for
         """
-        super().__init__(algo, T, batch_size, persistence, pca)
+        super().__init__(algo, T, batch_size, persistence, pca_dims)
         self.possible_actions = [-1, 1]
 
     def next_actions(self):

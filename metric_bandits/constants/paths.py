@@ -21,4 +21,4 @@ WINE_PATH = os.path.join(DATA_PATH, "wine.data")
 
 # Model paths
 MODELS = os.path.join(ROOT_PATH, "models")
-MNIST_PCA_MODEL_PATH = os.path.join(MODELS, "mnist_pca_model.pt")
+MNIST_PCA_MODEL_PATH = os.path.join(MODELS, "mnist_pca_model")
