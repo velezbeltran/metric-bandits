@@ -32,12 +32,13 @@ def make_pca_mnist(mnist, n_components=PCA_DIMS):
     data = (data - data.mean(axis=0)) / (data.std(axis=0) + 1e-8)
 
     # import model if exists otherwise make one and save
-    if os.path.exists(MNIST_PCA_MODEL_PATH):
-        pca = pkl.load(open(MNIST_PCA_MODEL_PATH, "rb"))
+    pth = os.path.join(MNIST_PCA_MODEL_PATH + str(n_components) + ".pth")
+    if os.path.exists(pth):
+        pca = pkl.load(open(pth, "rb"))
     else:
         pca = PCA(n_components=n_components)
         pca.fit(data)
-        pkl.dump(pca, open(MNIST_PCA_MODEL_PATH, "wb"))
+        pkl.dump(pca, open(pth, "wb"))
     data = pca.transform(data)
     data = [(torch.tensor(img), label) for img, label in zip(data, labels)]
     return data

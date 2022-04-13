@@ -8,7 +8,6 @@ parameter S, step size η, number of gradient descent steps J, network width m, 
 from math import sqrt
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
 
@@ -17,27 +16,16 @@ from metric_bandits.utils.math import sherman_morrison
 
 
 class NeuralUCB(BaseAlgo):
-    def __init__(
-        self,
-        context_dim,
-        hidden_dim,
-        depth,
-        dropout,
-        regularization,
-        step_size,
-        num_steps,
-        train_freq=100,
-        exploration_param=0.1,
-    ):
-        self.regularization = regularization
+    def __init__(self, model, reg, step_size, num_steps, train_freq, explore_param):
+        super().__init__()
+        self.reg = reg
         self.step_size = step_size
         self.num_steps = num_steps
-        self.depth = depth
-        self.exploration_param = exploration_param
+        self.explore_param = explore_param
         self.train_freq = train_freq
 
         # Set up model and optimizer
-        self.model = BaseNN(context_dim, hidden_dim, depth, dropout)
+        self.model = model
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=step_size)
 
         # state of the algorithm
@@ -45,6 +33,8 @@ class NeuralUCB(BaseAlgo):
         self.t = 0
 
         # parameters to keep track of
+        self.avg = 0
+        self.n = 1
         self.last_action = None
         self.rewards = []
         self.contexts_played = []
@@ -53,11 +43,15 @@ class NeuralUCB(BaseAlgo):
         """
         actions is a list-like object dictionary and contains the available actions
         """
+        self.model.eval()
         self.ucb_val_grads, self.ucb_estimate = {}, {}
         for action in actions:
             val, grad = self.get_val_grad(actions[action])
             self.ucb_val_grads[action] = (val, grad)
-            self.ucb_estimate[action] = val + self.optimist_reward(grad)
+            opt = self.optimist_reward(grad)
+            self.avg = (self.avg * self.n + opt.item()) / (self.n + 1)
+            self.n += 1
+            self.ucb_estimate[action] = val + opt
 
         # return the key with the highest value
         self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
@@ -94,7 +88,7 @@ class NeuralUCB(BaseAlgo):
 
     def optimist_reward(self, grad):
         with torch.no_grad():
-            val = self.exploration_param * torch.sqrt(
+            val = self.explore_param * torch.sqrt(
                 grad.T @ self.Z_inv @ grad / self.model.num_params
             )
             return val
@@ -103,6 +97,7 @@ class NeuralUCB(BaseAlgo):
         """
         Trains the model
         """
+        self.model.train()
         inputs = torch.stack(self.contexts_played)
         tgts = torch.tensor(self.rewards).unsqueeze(-1)
         dataset = torch.utils.data.TensorDataset(inputs, tgts)
@@ -121,89 +116,12 @@ class NeuralUCB(BaseAlgo):
                 self.optimizer.step()
                 pbar.set_description(f"Loss: {loss.item():.4f}")
 
+        self.model.eval()
+        self.save()
+
     def reset(self):
         """
         Resets the model
         """
         self.Z_inv = torch.eye(self.model.num_params)
         print("Reset model")
-
-
-class BaseNN(nn.Module):
-    """
-    Implements an extremely simple neural network with initialization as explained in
-    the paper.
-
-    Parameters
-    ----------
-    context_dim : int
-        Dimension of the context vector
-    hidden_dim : int
-        Dimension of the hidden layer
-    depth : int
-        Depth of the network does not include the last layer.
-        The last layer is always a linear layer.
-    Dropout : float
-        Dropout probability.
-    """
-
-    def __init__(self, context_dim, hidden_dim, depth, dropout):
-        assert depth > 0, "Depth must be greater than 0"
-
-        super(BaseNN, self).__init__()
-        self.context_dim = context_dim
-        self.hidden_dim = hidden_dim
-        self.depth = depth
-        self.dropout = dropout
-        self.activation = F.relu
-
-        layers = [
-            nn.Linear(
-                context_dim,
-                hidden_dim,
-            )
-        ]
-        for i in range(depth - 1):
-            layers.append(nn.Linear(hidden_dim, hidden_dim))
-            layers.append(nn.ReLU())
-        layers.append(nn.Linear(hidden_dim, 1))
-
-        self.layers = nn.ModuleList(layers)
-        self.init_weights()
-
-    def forward(self, x):
-        """
-        Forward pass of the neural network
-        """
-        x = self.make_batch(x)
-        for i in range(self.depth):
-            x = self.layers[i](x)
-            x = self.activation(x)
-            x = F.dropout(x, p=self.dropout)
-        x = self.layers[-1](x)
-        return x
-
-    def make_batch(self, x):
-        """
-        Makes x into a batch if it doesn't already have batch dimension
-        """
-        if len(x.shape) == 1:
-            x = x.unsqueeze(0)
-        return x
-
-    def init_weights(self):
-        """
-        Initializes the weights of the neural network as done in the
-        paper
-        """
-        # TODO: Implement this
-        return None
-
-    @property
-    def num_params(self):
-        """
-        Returns the number of parameters in the model
-        """
-        if not hasattr(self, "_num_params"):
-            self._num_params = sum(p.numel() for p in self.parameters())
-        return self._num_params
