@@ -17,3 +17,6 @@ def square_matrix_norm(A, x):
     Computes the projection of vector x in the matrix norm of A
     """
     return x.T @ A @ x
+
+def _inv(A):
+    return np.linalg.pinv(A)
