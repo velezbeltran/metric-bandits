@@ -9,6 +9,11 @@ from pathlib import Path
 ROOT_PATH = Path(__file__).parent.parent.parent
 DATA_PATH = os.path.join(ROOT_PATH, "data")
 
+# Paths for report
+WRITEUP_PATH = os.path.join(ROOT_PATH, "writeup")
+REPORT_PATH = os.path.join(WRITEUP_PATH, "report")
+FIGURES_PATH = os.path.join(REPORT_PATH, "figures")
+
 # CIFAR_10 paths
 CIFAR_10_PATH = os.path.join(DATA_PATH, "cifar-10-batches-py")
 CIFAR_10_TRIPLETS_PATH = os.path.join(DATA_PATH, "cifar_triplets")
