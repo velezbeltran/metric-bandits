@@ -8,7 +8,6 @@ import uuid
 
 import torch
 
-from metric_bandits.constants.constants import SEED
 from metric_bandits.data.mnist import MNIST, make_pca_mnist
 from metric_bandits.envs.base_env import BaseEnv
 
@@ -23,7 +22,6 @@ class MNISTEnv(BaseEnv):
             persistence: how many rounds to keep the same dataset for
         """
         # set seed
-        torch.manual_seed(SEED)
         data = MNIST if not pca_dims else make_pca_mnist(MNIST, pca_dims)
         super().__init__(data, algo, T)
         self.persistence = persistence

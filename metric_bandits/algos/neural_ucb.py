@@ -49,8 +49,6 @@ class NeuralUCB(BaseAlgo):
             val, grad = self.get_val_grad(actions[action])
             self.ucb_val_grads[action] = (val, grad)
             opt = self.optimist_reward(grad)
-            self.avg = (self.avg * self.n + opt.item()) / (self.n + 1)
-            self.n += 1
             self.ucb_estimate[action] = val + opt
 
         # return the key with the highest value
@@ -80,10 +78,10 @@ class NeuralUCB(BaseAlgo):
         Returns the predicted value and the gradient of the neural network
         as a one dimensional column vector.
         """
-        self.model.zero_grad()
+
         val = self.model(x)
-        grad = torch.autograd.grad(val, self.model.parameters())
-        g = torch.cat([g.flatten() for g in grad])
+        model_parameters = filter(lambda p: p.requires_grad, self.model.parameters())
+        g = torch.cat([g.flatten() for g in model_parameters])
         return val, g.unsqueeze(-1)
 
     def optimist_reward(self, grad):
