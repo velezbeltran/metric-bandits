@@ -11,6 +11,7 @@ import torch
 from metric_bandits.constants.constants import SEED
 from metric_bandits.data.mnist import MNIST, make_pca_mnist
 from metric_bandits.envs.base_env import BaseEnv
+from metric_bandits.algos.linucb import LinUCB
 
 
 class MNISTEnv(BaseEnv):
@@ -31,6 +32,11 @@ class MNISTEnv(BaseEnv):
         self.idx = {}
         self.init_data()
         self.rewards = []
+        self.granularity = [i for i in range(10)]
+
+        # If algorithm is LinUCB, change settings:
+        if(isinstance(self.algo, LinUCB)):
+            self.granularity = [-1, 1]
 
     def next_actions(self):
         """
@@ -41,7 +47,7 @@ class MNISTEnv(BaseEnv):
 
         # Get new set of actions
         if self.t % self.persistence == 0:
-            cur_idx = self.t // self.persistence
+            cur_idx = (self.t // self.persistence) % int(len(self.data) * 0.8 - 1) 
 
             # choose the next batch of images to use for training
             b_idxs = self.idx[self.mode][cur_idx : cur_idx + self.batch_size]
@@ -55,7 +61,7 @@ class MNISTEnv(BaseEnv):
             # produce the actions
             for imgx, labelx in batch:
                 for imgy, labely in batch:
-                    for prop_distance in range(10):
+                    for prop_distance in self.granularity:
                         if not torch.eq(imgx, imgy).all():
                             context_partial = torch.cat(
                                 (imgx.flatten(), imgy.flatten())
@@ -76,7 +82,9 @@ class MNISTEnv(BaseEnv):
         """
         real_distance = self.real_distances[action]
         prop_distance = self.proposed_distances[action]
-        reward = 1 - abs((real_distance - prop_distance) / 10)
+        reward = 1 - abs((real_distance - prop_distance) / len(self.granularity))
+        if isinstance(self.algo, LinUCB):
+            reward = 1 if real_distance == prop_distance else 0
         self.t += 1
         return reward
 
@@ -84,7 +92,7 @@ class MNISTEnv(BaseEnv):
         """
         Makes the vector full by adding the distance to the context
         """
-        number_arms = 10  # 10 possible distances
+        number_arms = len(self.granularity)  # 10 possible distances for neural UCB
         v_size = len(vector)
         full_v = torch.zeros(v_size * number_arms)
         full_v[prop_distance * v_size : (prop_distance + 1) * v_size] = vector
