@@ -66,7 +66,7 @@ class NeuralUCB(BaseAlgo):
         prev_grad = self.ucb_val_grads[self.last_action][1] / sqrt(
             self.model.num_params
         )
-        self.Z_inv = sherman_morrison(self.Z_inv, prev_grad)
+        self.Z_inv = sherman_morrison(self.Z_inv, prev_grad.detach())
 
         # decide whether to train the model
         self.t += 1
@@ -80,11 +80,11 @@ class NeuralUCB(BaseAlgo):
         """
 
         val = self.model(x)
-        model_parameters = filter(lambda p: p.requires_grad, self.model.parameters())
-        g = torch.cat([g.flatten() for g in model_parameters])
+        g = torch.cat([g.flatten() for g in self.model.parameters()])
         return val, g.unsqueeze(-1)
 
     def optimist_reward(self, grad):
+        grad = grad.detach()
         with torch.no_grad():
             val = self.explore_param * torch.sqrt(
                 grad.T @ self.Z_inv @ grad / self.model.num_params
@@ -121,5 +121,5 @@ class NeuralUCB(BaseAlgo):
         """
         Resets the model
         """
-        self.Z_inv = torch.eye(self.model.num_params)
+        self.Z_inv = torch.eye(self.model.num_params, requires_grad=False)
         print("Reset model")
