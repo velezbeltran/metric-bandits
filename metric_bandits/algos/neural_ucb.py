@@ -17,6 +17,7 @@ from metric_bandits.utils.math import sherman_morrison
 
 class NeuralUCB(BaseAlgo):
     def __init__(self, model, reg, step_size, num_steps, train_freq, explore_param):
+        super().__init__()
         self.reg = reg
         self.step_size = step_size
         self.num_steps = num_steps
@@ -32,6 +33,8 @@ class NeuralUCB(BaseAlgo):
         self.t = 0
 
         # parameters to keep track of
+        self.avg = 0
+        self.n = 1
         self.last_action = None
         self.rewards = []
         self.contexts_played = []
@@ -40,11 +43,15 @@ class NeuralUCB(BaseAlgo):
         """
         actions is a list-like object dictionary and contains the available actions
         """
+        self.model.eval()
         self.ucb_val_grads, self.ucb_estimate = {}, {}
         for action in actions:
             val, grad = self.get_val_grad(actions[action])
             self.ucb_val_grads[action] = (val, grad)
-            self.ucb_estimate[action] = val + self.optimist_reward(grad)
+            opt = self.optimist_reward(grad)
+            self.avg = (self.avg * self.n + opt.item()) / (self.n + 1)
+            self.n += 1
+            self.ucb_estimate[action] = val + opt
 
         # return the key with the highest value
         self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
@@ -90,6 +97,7 @@ class NeuralUCB(BaseAlgo):
         """
         Trains the model
         """
+        self.model.train()
         inputs = torch.stack(self.contexts_played)
         tgts = torch.tensor(self.rewards).unsqueeze(-1)
         dataset = torch.utils.data.TensorDataset(inputs, tgts)
@@ -108,14 +116,12 @@ class NeuralUCB(BaseAlgo):
                 self.optimizer.step()
                 pbar.set_description(f"Loss: {loss.item():.4f}")
 
+        self.model.eval()
+        self.save()
+
     def reset(self):
         """
         Resets the model
         """
         self.Z_inv = torch.eye(self.model.num_params)
         print("Reset model")
-
-    def save_model(self, path):
-        """
-        Saves the model
-        """

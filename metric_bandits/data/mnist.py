@@ -32,7 +32,7 @@ def make_pca_mnist(mnist, n_components=PCA_DIMS):
     data = (data - data.mean(axis=0)) / (data.std(axis=0) + 1e-8)
 
     # import model if exists otherwise make one and save
-    pth = os.path.join(MNIST_PCA_MODEL_PATH + n_components + ".pth")
+    pth = os.path.join(MNIST_PCA_MODEL_PATH + str(n_components) + ".pth")
     if os.path.exists(pth):
         pca = pkl.load(open(pth, "rb"))
     else:
