@@ -79,6 +79,7 @@ class RDML(BaseAlgo):
                              )
             # Now update the metric:
             self.metric = self.metric - _lambda * (- y_act) * x_diff @ x_diff.T
+            self.t += 1
 
 
     def reset(self):
