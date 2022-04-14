@@ -16,13 +16,16 @@ from metric_bandits.utils.math import sherman_morrison
 
 
 class NeuralUCB(BaseAlgo):
-    def __init__(self, model, reg, step_size, num_steps, train_freq, explore_param):
+    def __init__(
+        self, model, reg, step_size, num_steps, train_freq, explore_param, loss
+    ):
         super().__init__()
         self.reg = reg
         self.step_size = step_size
         self.num_steps = num_steps
         self.explore_param = explore_param
         self.train_freq = train_freq
+        self.loss = loss
 
         # Set up model and optimizer
         self.model = model
@@ -78,9 +81,10 @@ class NeuralUCB(BaseAlgo):
         Returns the predicted value and the gradient of the neural network
         as a one dimensional column vector.
         """
-
-        val = self.model(x)
-        g = torch.cat([g.flatten() for g in self.model.parameters()])
+        self.model.zero_grad()
+        val, _ = self.model(x)
+        grad = torch.autograd.grad(val, self.model.parameters(), create_graph=False)
+        g = torch.cat([g.flatten() for g in grad])
         return val, g.unsqueeze(-1)
 
     def optimist_reward(self, grad):
@@ -108,7 +112,7 @@ class NeuralUCB(BaseAlgo):
                 assert x.shape[0] == self.train_freq
                 assert y.shape[0] == self.train_freq
                 self.optimizer.zero_grad()
-                val = self.model(x)
+                val, _ = self.model(x)
                 loss = F.mse_loss(val, y, reduction="mean")
                 loss.backward()
                 self.optimizer.step()
