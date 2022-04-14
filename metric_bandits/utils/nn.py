@@ -33,6 +33,6 @@ def make_metric(model):
         y = make_batch(to_tensor(y))
 
         sim, _ = model.predict_similarity(x, y)
-        return sim.item()
+        return -sim.item()
 
     return metric
