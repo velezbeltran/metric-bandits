@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 from metric_bandits.algos.base import BaseAlgo
 from metric_bandits.utils.math import sherman_morrison
+from metric_bandits.utils.nn import make_metric
 
 
 class NeuralUCB(BaseAlgo):
@@ -124,3 +125,7 @@ class NeuralUCB(BaseAlgo):
         """
         self.Z_inv = torch.eye(self.model.num_params, requires_grad=False)
         print("Reset model")
+
+    @property
+    def metric(self):
+        return make_metric(self.model)

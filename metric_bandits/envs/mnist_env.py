@@ -4,7 +4,9 @@ Convention
 last dimension of action is the proposed distance.
 """
 
+
 import uuid
+from collections import defaultdict
 
 import torch
 
@@ -13,7 +15,7 @@ from metric_bandits.envs.base_env import BaseEnv
 
 
 class MNISTEnv(BaseEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca_dims=None):
+    def __init__(self, algo, T, batch_size, persistence, pca_dims=None, eval_freq=1000):
         """
         Initializes the environment
 
@@ -24,7 +26,7 @@ class MNISTEnv(BaseEnv):
         # set seed
         data = MNIST if not pca_dims else make_pca_mnist(MNIST, pca_dims)
         # center and scale
-        super().__init__(data, algo, T)
+        super().__init__(data, algo, T, eval_freq)
         self.persistence = persistence
         self.batch_size = batch_size
         self.idx = {}
@@ -42,7 +44,7 @@ class MNISTEnv(BaseEnv):
 
     def init_data(self):
         """
-        Initializes the data loader
+        Initializes the data and creates the pretty version
         """
         train_len = int(len(self.data) * 0.8)
         permutaion = torch.randperm(len(self.data))
@@ -50,6 +52,21 @@ class MNISTEnv(BaseEnv):
         self.idx = {}
         self.idx["train"] = permutaion[:train_len]
         self.idx["test"] = permutaion[train_len:]
+
+        # create pretty version (i.e compatible with sklarn)
+        X = defaultdict(list)
+        Y = defaultdict(list)
+        for mode in ["train", "test"]:
+            for i in range(len(self.idx[mode])):
+                X[mode].append(self.data[self.idx[mode][i]][0])
+                Y[mode].append(self.data[self.idx[mode][i]][1])
+
+        self.X_train = torch.vstack(X["train"]).numpy()[:500]
+        self.Y_train = torch.tensor(Y["train"]).numpy()[:500]
+        self.X_test = torch.vstack(X["test"]).numpy()[:100]
+        self.Y_test = torch.tensor(Y["test"]).numpy()[:100]
+
+        self.nice_data_available = True
 
     def reset(self):
         """
@@ -133,7 +150,7 @@ class MNISTNumDistEnv(MNISTEnv):
 
 
 class MNISTSimEnv(MNISTEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca_dims=None):
+    def __init__(self, algo, T, batch_size, persistence, pca_dims=None, eval_freq=1000):
         """
         Mnist environment
 
@@ -141,7 +158,9 @@ class MNISTSimEnv(MNISTEnv):
             batch_size: size of the batch to use for training
             persistence: how many rounds to keep the same dataset for
         """
-        super().__init__(algo, T, batch_size, persistence, pca_dims)
+        super().__init__(
+            algo, T, batch_size, persistence, pca_dims, eval_freq=eval_freq
+        )
         self.possible_actions = [-1, 1]
 
     def next_actions(self):

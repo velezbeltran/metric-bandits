@@ -28,7 +28,7 @@ def make_metric(model):
     Assumes that x, y are numpy arrays.
     """
 
-    def metric(x, y):
+    def metric(x, y, **kwargs):
         x = make_batch(to_tensor(x))
         y = make_batch(to_tensor(y))
 

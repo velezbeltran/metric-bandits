@@ -4,6 +4,8 @@ for exploration
 """
 from tqdm import tqdm
 
+from metric_bandits.utils.eval import eval_knn
+
 
 class BaseEnv:
     """
@@ -21,8 +23,14 @@ class BaseEnv:
         self.mode = "train"  # mode of the environment (train/test)
         self.eval_freq = eval_freq  # How of to call self.eval
 
+        # Nice way of of storing the data
+        self.X_train, self.Y_train = None, None
+        self.X_test, self.Y_test = None, None
+        self.nice_data_available = False
+
         self.cum_regrets = [0]  # keeps track of the regret per round
         self.rewards = []  # keeps track of the rewards per round
+        self.eval_metrics = []  # keeps track of the evaluation metrics per round
 
     def update(self, r):
         """
@@ -54,7 +62,7 @@ class BaseEnv:
         Trains the algorithm
         """
         self.mode = "train"
-        for t in (pbar := tqdm(range(self.T))):
+        for _ in (pbar := tqdm(range(self.T))):
             actions = self.next_actions()
             action = self.algo.choose_action(actions)
             r = self.step(action)
@@ -62,11 +70,20 @@ class BaseEnv:
             self.update(r)
             # print the regret nicely
             pbar.set_description(f"Regret/time: {self.cum_regrets[-1]/self.t:.2f}")
-            if t + 1 % self.eval_freq == 0:
+            if (self.t + 1) % self.eval_freq == 0:
                 self.eval()
 
     def eval(self):
-        return None
+        eval_metric = {}
+        print("Evaluating...")
+        if hasattr(self.algo, "metric") and self.nice_data_available:
+            metric = self.algo.metric
+            acc = eval_knn(self.X_train, self.Y_train, self.X_test, self.Y_test, metric)
+            eval_metric["knn acc"] = acc
+
+        for k, v in eval_metric.items():
+            print(f"{k}: {v}")
+        self.eval_metrics.append(eval_metric)
 
     @property
     def mode(self):
