@@ -40,5 +40,7 @@ def make_pca_mnist(mnist, n_components=PCA_DIMS):
         pca.fit(data)
         pkl.dump(pca, open(pth, "wb"))
     data = pca.transform(data)
+    # normalize the data
+    data = (data - data.mean(axis=0)) / (data.std(axis=0) + 1e-8)
     data = [(torch.tensor(img), label) for img, label in zip(data, labels)]
     return data

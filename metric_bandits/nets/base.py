@@ -34,14 +34,10 @@ class BaseNN(nn.Module):
         self.activation = F.relu
 
         layers = [
-            nn.Linear(
-                context_dim,
-                hidden_dim,
-            )
+            nn.Linear(context_dim, hidden_dim),
         ]
         for _ in range(depth - 1):
             layers.append(nn.Linear(hidden_dim, hidden_dim))
-            layers.append(nn.ReLU())
         layers.append(nn.Linear(hidden_dim, out_dim))
 
         self.layers = nn.ModuleList(layers)

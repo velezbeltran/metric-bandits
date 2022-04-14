@@ -16,16 +16,13 @@ from metric_bandits.utils.math import sherman_morrison
 
 
 class NeuralUCB(BaseAlgo):
-    def __init__(
-        self, model, reg, step_size, num_steps, train_freq, explore_param, loss
-    ):
+    def __init__(self, model, reg, step_size, num_steps, train_freq, explore_param):
         super().__init__()
         self.reg = reg
         self.step_size = step_size
         self.num_steps = num_steps
         self.explore_param = explore_param
         self.train_freq = train_freq
-        self.loss = loss
 
         # Set up model and optimizer
         self.model = model

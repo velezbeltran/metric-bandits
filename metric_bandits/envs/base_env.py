@@ -10,7 +10,7 @@ class BaseEnv:
     Class for creating an environment for exploration
     """
 
-    def __init__(self, data, algo, T):
+    def __init__(self, data, algo, T, eval_freq=1000):
         """
         Initializes the environment
         """
@@ -19,6 +19,7 @@ class BaseEnv:
         self.T = T  # Total number of rounds
         self.t = 0  # current round
         self.mode = "train"  # mode of the environment (train/test)
+        self.eval_freq = eval_freq  # How of to call self.eval
 
         self.cum_regrets = [0]  # keeps track of the regret per round
         self.rewards = []  # keeps track of the rewards per round

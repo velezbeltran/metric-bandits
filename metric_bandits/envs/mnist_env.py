@@ -23,6 +23,7 @@ class MNISTEnv(BaseEnv):
         """
         # set seed
         data = MNIST if not pca_dims else make_pca_mnist(MNIST, pca_dims)
+        # center and scale
         super().__init__(data, algo, T)
         self.persistence = persistence
         self.batch_size = batch_size
