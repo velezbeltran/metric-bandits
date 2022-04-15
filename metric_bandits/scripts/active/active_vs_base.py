@@ -25,10 +25,10 @@ normalize = False
 
 
 # Constants for the environment
-T = 1000
+T = 3000
 batch_size = 5
 persistence = 2
-eval_freq = 10
+eval_freq = 50
 to_eval = ["linear", "embedding"]
 
 # Constants for UCB
@@ -67,7 +67,7 @@ for explore_param in [0, 0.1]:
 plt.style.use("ggplot")
 matplotlib.rcParams.update({"font.size": 10})
 title = "Active vs non-active learning on Moons"
-name = "active_vs_base_moons_linear_clf"
+name = "active_vs_base_moons_linear_clf_sgd"
 pth = os.path.join(FIGURES_PATH, name + ".png")
 
 fig, ax = plt.subplots(figsize=(10, 5))

@@ -180,7 +180,7 @@ class NeuralUCB(BaseAlgo):
 
         self.model.eval()
         self.save()
-        if self.reset_freq(self.train_t + 1) & self.reset_freq == 0:
+        if self.reset_freq & (self.train_t + 1) % self.reset_freq == 0:
             self.reset()
 
         self.train_t += 1
