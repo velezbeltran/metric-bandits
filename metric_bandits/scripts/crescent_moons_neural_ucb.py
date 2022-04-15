@@ -6,11 +6,10 @@ generally.
 import os
 import pickle as pkl
 
-from metric_bandits.algos.neural_ucb import NeuralUCB
 from metric_bandits.constants.paths import OBJECT_DUMP_PATH
-from metric_bandits.envs.moons_env import MoonsSimEnv
-from metric_bandits.nets.siamese import SiameseNet
+from metric_bandits.utils.plots import plot_embeddings
 
+"""
 # Constants for the neural network
 input_dim = 2
 depth = 3
@@ -53,14 +52,21 @@ for i in range(2):
     eval_metrics.append(env.eval_metrics)
 
 # save the results
+"""
 title = "Crecent moons Neural-UCB Cosine Similarity"
 name = "crescent_moons_neural_ucb_cosine_similarity"
 
 pth = os.path.join(OBJECT_DUMP_PATH, name + ".pkl")
-with open(pth, "wb") as f:
-    pkl.dump(eval_metrics, f)
+# with open(pth, "wb") as f:
+#    pkl.dump(eval_metrics, f)
 
 with open(pth, "rb") as f:
     eval_metrics = pkl.load(f)
 
-# plot_regret(cum_regrets, title, name=title)
+# plot the emeddings
+
+for i, eval_metric in enumerate(eval_metrics):
+    embeddings = [metric["embedding"] for metric in eval_metric]
+    plot_embeddings(
+        eval_metric, folder="crescent_moons", title=title, name=name + str(i)
+    )

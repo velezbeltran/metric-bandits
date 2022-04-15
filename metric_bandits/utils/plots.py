@@ -36,7 +36,7 @@ colors = [
 ]
 
 
-def plot_regret(regrets, title="", name=""):
+def plot_regret(regrets, folder, title="", name=""):
     """
     Plots the cumulative regret and saves it in the figures directory.
     Assumes that regrets is a dictionary with they keys being the names
@@ -55,10 +55,10 @@ def plot_regret(regrets, title="", name=""):
     ax.set_xlabel("Round")
     ax.set_ylabel("Cumulative Regret")
     ax.legend()
-    fig.savefig(os.path.join(FIGURES_PATH, f"{name}_regret.png"), dpi=300)
+    fig.savefig(os.path.join(FIGURES_PATH, folder, f"{name}_regret.png"), dpi=300)
 
 
-def plot_embeddings(embeddings, labels, title="", name=""):
+def plot_embeddings(embeddings, labels, folder, title="", name=""):
     """
     Plots the embeddings and saves it in the figures directory.
     Embeddings have shape [num_embeddings, embedding_dim]

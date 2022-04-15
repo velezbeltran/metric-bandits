@@ -2,10 +2,17 @@
 Contains the code for creating an environment for an abstract environment
 for exploration
 """
+from collections import defaultdict
+
+import matplotlib.pyplot as plt
 import torch as torch
 from tqdm import tqdm
 
 from metric_bandits.utils.eval import eval_knn, eval_linear
+
+# make pretty plots ggplot
+plt.style.use("ggplot")
+plt.gca().set_aspect("equal", adjustable="box")
 
 
 class BaseEnv:
@@ -23,6 +30,7 @@ class BaseEnv:
         self.t = 0  # current round
         self.mode = "train"  # mode of the environment (train/test)
         self.eval_freq = eval_freq  # How of to call self.eval
+        self.to_eval = to_eval  # What to evaluate
 
         # Nice way of of storing the data
         self.X_train, self.Y_train = None, None
@@ -31,7 +39,9 @@ class BaseEnv:
 
         self.cum_regrets = [0]  # keeps track of the regret per round
         self.rewards = []  # keeps track of the rewards per round
-        self.eval_metrics = []  # keeps track of the evaluation metrics per round
+        self.eval_metrics = defaultdict(
+            list
+        )  # keeps track of the evaluation metrics per round
 
     def update(self, r):
         """
@@ -83,7 +93,6 @@ class BaseEnv:
         Evaluates the algorithm by looking at the quality of the embeddings
         and of a KNN predictor. The results are stored in `self.eval_metrics`.
         """
-        eval_metric = {}  # metrics to keep track of this epoch
         print("Evaluating...")
 
         # if the algorithm has a metric use it to test KNN
@@ -93,34 +102,31 @@ class BaseEnv:
         if hasattr(self.algo, "metric") and "knn" in self.to_eval:
             metric = self.algo.metric
             acc = eval_knn(self.X_train, self.Y_train, self.X_test, self.Y_test, metric)
-            eval_metric["knn_acc"] = acc
+            self.eval_metrics["knn_acc"].append(acc)
 
         if hasattr(self.algo, "embed") and "linear" in self.to_eval:
             embed = self.algo.embed
-            X_train = (
-                embed(torch.tensor(self.X_train).to(self.device)).detach().cpu().numpy()
-            )
-            X_test = (
-                embed(torch.tensor(self.X_test).to(self.device)).detach().cpu().numpy()
-            )
-            acc = eval_linear(
-                self.X_train, self.Y_train, self.X_test, self.Y_test, embed
-            )
-            eval_metric["linear_acc"] = acc
+            X_train = embed(torch.tensor(self.X_train).to(self.device).float())
+            X_train = X_train.detach().cpu().numpy()
+            X_test = embed(torch.tensor(self.X_test).to(self.device).float())
+            X_test = X_test.detach().cpu().numpy()
+
+            acc = eval_linear(X_train, self.Y_train, X_test, self.Y_test)
+
+            # plot the embedding
+            self.eval_metrics["linear_acc"].append(acc)
 
         # if the algorithm has an embedding associated with it
         # use it to visualize the embedding
         if hasattr(self.algo, "embed") and "embedding" in self.to_eval:
             embed = self.algo.embed
             X_tensor = torch.tensor(self.X_test).to(self.device, dtype=torch.float)
-            X_embed = embed(X_tensor)
-            eval_metric["embedding"] = (X_tensor, self.Y_test)
+            X_embed = embed(X_tensor).detach().cpu().numpy()
+            self.eval_metrics["embedding"].append((X_embed, self.Y_test))
 
-        for k, v in eval_metric.items():
+        for k, v in self.eval_metrics.items():
             if k != "embedding":
-                print(f"{k}: {v}")
-
-        self.eval_metrics.append(eval_metric)
+                print(f"{k}: {v[-1]:.4f}")
 
     @property
     def mode(self):

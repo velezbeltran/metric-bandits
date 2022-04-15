@@ -5,6 +5,7 @@ the paper. Name of variables are chosen so as to agree with the paper.
 s T, regularization parameter λ, exploration parameter ν, confidence parameter δ, norm
 parameter S, step size η, number of gradient descent steps J, network width m, network depth L.
 """
+import random
 from collections import defaultdict
 from math import sqrt
 
@@ -19,19 +20,26 @@ from metric_bandits.utils.nn import make_metric
 
 class NeuralUCB(BaseAlgo):
     def __init__(
-        self, model, reg, step_size, num_steps, train_freq, explore_param, active=False
+        self,
+        model,
+        step_size,
+        num_steps,
+        train_freq,
+        explore_param,
+        active=False,
+        verbose=True,
     ):
         """
         If active is true, the model forgets completely about regret and just takes actions
         with the aim of maximizing information gain.
         """
         super().__init__()
-        self.reg = reg
         self.step_size = step_size
         self.num_steps = num_steps
         self.explore_param = explore_param
         self.train_freq = train_freq
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.verbose = verbose
 
         # Set up model and optimizer
         self.model = model.to(self.device)
@@ -42,8 +50,7 @@ class NeuralUCB(BaseAlgo):
         self.t = 0
 
         # parameters to keep track of
-        self.avg = 0
-        self.n = 1
+        self.active = active
         self.last_action = None
         self.rewards = []
         self.contexts_played = []
@@ -68,6 +75,7 @@ class NeuralUCB(BaseAlgo):
 
         # return the key with the highest value
         self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
+        self.last_grad = self.ucb_val_grads[self.last_action][1]
         self.contexts_played.append(actions[self.last_action])
         return self.last_action
 
@@ -84,8 +92,12 @@ class NeuralUCB(BaseAlgo):
         self.unique_contexts = defaultdict(list)
 
         # Keep track of relevant values per unique context
-        for action in actions:
-            ctxt = actions[action][:-1]
+
+        # We shuffle in case we have an optimist reward of zero
+        items = list(actions.items())
+        random.shuffle(items)
+        for action, ctxt in items:
+            ctxt = str(ctxt[:-1])
             val, grad = self.get_val_grad(actions[action])
             self.ucb_val_grads[ctxt].append((val, grad))
             self.ucb_estimate[ctxt] += self.optimist_reward(grad)
@@ -94,10 +106,10 @@ class NeuralUCB(BaseAlgo):
         # Choose to make a desicion on the pair with the highes opt value
         self.last_context = max(self.ucb_estimate, key=self.ucb_estimate.get)
         # choose the action with the highest value
-        ctxt_vg = self.ucb_val_grads[self.last_context]
-        argmax = 0 if ctxt_vg[0][0] > ctxt_vg[1][0] else 1
-
+        ctxt_val = self.ucb_val_grads[self.last_context]
+        argmax = 0 if ctxt_val[0] > ctxt_val[1] else 1
         self.last_action = self.unique_contexts[self.last_context][argmax]
+        self.last_grad = ctxt_val[argmax][1]
         self.contexts_played.append(actions[self.last_action])
         return self.last_action
 
@@ -108,9 +120,7 @@ class NeuralUCB(BaseAlgo):
         self.rewards.append(reward)
 
         # update our confidence matrix
-        prev_grad = self.ucb_val_grads[self.last_action][1] / sqrt(
-            self.model.num_params
-        )
+        prev_grad = self.last_grad / sqrt(self.model.num_params)
         self.Z_inv = sherman_morrison(self.Z_inv, prev_grad.detach())
 
         # decide whether to train the model
@@ -147,7 +157,7 @@ class NeuralUCB(BaseAlgo):
         dataset = torch.utils.data.TensorDataset(inputs, tgts)
         loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
 
-        pbar = tqdm(total=self.num_steps)
+        pbar = tqdm(total=self.num_steps, disable=not self.verbose)
         for epoch in range(self.num_steps):
             loss_total = 0.0
             n = 0.0

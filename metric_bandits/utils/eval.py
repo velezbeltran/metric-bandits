@@ -1,6 +1,6 @@
-from sklearn.linear_model import LinearSVC
 from sklearn.metrics import accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import LinearSVC
 
 
 def eval_knn(X_train, Y_train, X_test, Y_test, metric):

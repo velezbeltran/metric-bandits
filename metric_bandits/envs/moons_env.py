@@ -7,12 +7,21 @@ last dimension of action is the proposed distance.
 
 import torch
 
+from metric_bandits.constants.data import TEST_NUM, TRAIN_NUM
 from metric_bandits.data.moons import MOONS
 from metric_bandits.envs.base_env import BaseEnv
 
 
 class MoonsEnv(BaseEnv):
-    def __init__(self, algo, T, batch_size, persistence, eval_freq=1000):
+    def __init__(
+        self,
+        algo,
+        T,
+        batch_size,
+        persistence,
+        eval_freq=1000,
+        to_eval=["knn, embedding"],
+    ):
         """
         Initializes the environment
 
@@ -23,7 +32,9 @@ class MoonsEnv(BaseEnv):
         # set seed
         data = MOONS
         # center and scale
-        super().__init__(data, algo, T, eval_freq)
+        super().__init__(
+            data=data, algo=algo, T=T, eval_freq=eval_freq, to_eval=to_eval
+        )
         self.persistence = persistence
         self.batch_size = batch_size
         self.idx = {}
@@ -56,10 +67,10 @@ class MoonsEnv(BaseEnv):
         self.idx["test"] = perm[train_len:]
 
         # create pretty version (i.e compatible with sklarn)
-        self.X_train = X[self.idx["train"]].numpy()[:500]
-        self.Y_train = Y[self.idx["train"]].numpy()[:500]
-        self.X_test = X[self.idx["test"]].numpy()[:100]
-        self.Y_test = Y[self.idx["test"]].numpy()[:100]
+        self.X_train = X[self.idx["train"]].numpy()[:TRAIN_NUM]
+        self.Y_train = Y[self.idx["train"]].numpy()[:TRAIN_NUM]
+        self.X_test = X[self.idx["test"]].numpy()[:TEST_NUM]
+        self.Y_test = Y[self.idx["test"]].numpy()[:TEST_NUM]
         self.nice_data_available = True
 
     def reset(self):
@@ -79,7 +90,14 @@ class MoonsEnv(BaseEnv):
 
 class MoonsSimEnv(MoonsEnv):
     def __init__(
-        self, algo, T, batch_size, persistence, eval_freq=1000, possible_actions=[-1, 1]
+        self,
+        algo,
+        T,
+        batch_size,
+        persistence,
+        eval_freq=1000,
+        possible_actions=[-1, 1],
+        to_eval=["knn, embedding"],
     ):
         """
         Mnist environment
@@ -88,7 +106,9 @@ class MoonsSimEnv(MoonsEnv):
             batch_size: size of the batch to use for training
             persistence: how many rounds to keep the same dataset for
         """
-        super().__init__(algo, T, batch_size, persistence, eval_freq=eval_freq)
+        super().__init__(
+            algo, T, batch_size, persistence, eval_freq=eval_freq, to_eval=to_eval
+        )
         self.possible_actions = possible_actions
 
     def next_actions(self):

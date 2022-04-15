@@ -72,7 +72,6 @@ class SiameseNet(BaseNN):
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout)
         x = self.layers[-1](x)
-
         if self.normalize:
             x = x / torch.norm(x, dim=1, keepdim=True)
 
