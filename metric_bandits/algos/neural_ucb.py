@@ -28,6 +28,7 @@ class NeuralUCB(BaseAlgo):
         explore_param,
         active=False,
         verbose=True,
+        reset_freq=None,
     ):
         """
         If active is true, the model forgets completely about regret and just takes actions
@@ -40,14 +41,16 @@ class NeuralUCB(BaseAlgo):
         self.train_freq = train_freq
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.verbose = verbose
+        self.reset_freq = reset_freq
 
         # Set up model and optimizer
         self.model = model.to(self.device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=step_size)
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=step_size)
 
         # state of the algorithm
         self.Z_inv = None
         self.t = 0
+        self.train_t = 0
 
         # parameters to keep track of
         self.active = active
@@ -177,6 +180,10 @@ class NeuralUCB(BaseAlgo):
 
         self.model.eval()
         self.save()
+        if self.reset_freq(self.train_t + 1) & self.reset_freq == 0:
+            self.reset()
+
+        self.train_t += 1
 
     def reset(self):
         """
@@ -185,7 +192,6 @@ class NeuralUCB(BaseAlgo):
         self.Z_inv = torch.eye(
             self.model.num_params, requires_grad=False, device=self.device
         )
-        print("Reset model")
 
     @property
     def metric(self):

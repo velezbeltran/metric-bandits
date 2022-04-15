@@ -1,20 +1,21 @@
 """
-Implements an epsilon greedy strategy for training the neural network.
+The implementation of neural UCB follows very closely what is described in
+the paper. Name of variables are chosen so as to agree with the paper.
+`https://arxiv.org/pdf/1911.04462.pdf`
+s T, regularization parameter λ, exploration parameter ν, confidence parameter δ, norm
+parameter S, step size η, number of gradient descent steps J, network width m, network depth L.
 """
 import random
-from collections import defaultdict
-from math import sqrt
 
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 
 from metric_bandits.algos.base import BaseAlgo
-from metric_bandits.utils.math import sherman_morrison
 from metric_bandits.utils.nn import make_metric
 
 
-class NeuralUCB(BaseAlgo):
+class Neural(BaseAlgo):
     def __init__(
         self,
         model,
@@ -22,12 +23,11 @@ class NeuralUCB(BaseAlgo):
         num_steps,
         train_freq,
         explore_param,
-        active=False,
         verbose=True,
     ):
         """
         If active is true, the model forgets completely about regret and just takes actions
-        with the aim of maximizing information gain.
+        with the aim of maximizing information gain
         """
         super().__init__()
         self.step_size = step_size
@@ -39,14 +39,13 @@ class NeuralUCB(BaseAlgo):
 
         # Set up model and optimizer
         self.model = model.to(self.device)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=step_size)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=step_size)
 
         # state of the algorithm
-        self.Z_inv = None
         self.t = 0
+        self.train_t = 0
 
         # parameters to keep track of
-        self.active = active
         self.last_action = None
         self.rewards = []
         self.contexts_played = []
@@ -55,57 +54,15 @@ class NeuralUCB(BaseAlgo):
         """
         actions is a list-like object dictionary and contains the available actions
         """
-        self.model.eval()
-        if self.active:
-            return self.choose_action_active(actions)
+        greedy = random.random() < self.explore_param
+        if greedy:
+            self.vals = {}
+            for action in actions:
+                val = self.model(actions[action])
+                self.vals[action] = val.item()
+            self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
         else:
-            return self.choose_action_default(actions)
-
-    def choose_action_default(self, actions):
-        self.ucb_val_grads, self.ucb_estimate = {}, {}
-        for action in actions:
-            val, grad = self.get_val_grad(actions[action])
-            self.ucb_val_grads[action] = (val, grad)
-            opt = self.optimist_reward(grad)
-            self.ucb_estimate[action] = val + opt
-
-        # return the key with the highest value
-        self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
-        self.last_grad = self.ucb_val_grads[self.last_action][1]
-        self.contexts_played.append(actions[self.last_action])
-        return self.last_action
-
-    def choose_action_active(self, actions):
-        """
-        Chooses an action based on the current state of the model. The pair that is chossen
-        is the one that has the highest gradient. Currently only works in the implementation
-        where a similarity is provided at the end and there are two pairs.
-
-        This is not the cleanest way of doing this but it probably is the easiest one at the moment.
-        """
-        self.ucb_val_grads = defaultdict(list)
-        self.ucb_estimate = defaultdict(int)
-        self.unique_contexts = defaultdict(list)
-
-        # Keep track of relevant values per unique context
-
-        # We shuffle in case we have an optimist reward of zero
-        items = list(actions.items())
-        random.shuffle(items)
-        for action, ctxt in items:
-            ctxt = str(ctxt[:-1])
-            val, grad = self.get_val_grad(actions[action])
-            self.ucb_val_grads[ctxt].append((val, grad))
-            self.ucb_estimate[ctxt] += self.optimist_reward(grad)
-            self.unique_contexts[ctxt].append(action)
-
-        # Choose to make a desicion on the pair with the highes opt value
-        self.last_context = max(self.ucb_estimate, key=self.ucb_estimate.get)
-        # choose the action with the highest value
-        ctxt_val = self.ucb_val_grads[self.last_context]
-        argmax = 0 if ctxt_val[0] > ctxt_val[1] else 1
-        self.last_action = self.unique_contexts[self.last_context][argmax]
-        self.last_grad = ctxt_val[argmax][1]
+            self.last_action = random.choice(list(actions.keys()))
         self.contexts_played.append(actions[self.last_action])
         return self.last_action
 
@@ -115,33 +72,10 @@ class NeuralUCB(BaseAlgo):
         """
         self.rewards.append(reward)
 
-        # update our confidence matrix
-        prev_grad = self.last_grad / sqrt(self.model.num_params)
-        self.Z_inv = sherman_morrison(self.Z_inv, prev_grad.detach())
-
         # decide whether to train the model
         self.t += 1
         if self.t % self.train_freq == 0:
             self.train()
-
-    def get_val_grad(self, x):
-        """
-        Returns the predicted value and the gradient of the neural network
-        as a one dimensional column vector.
-        """
-        self.model.zero_grad()
-        val, _ = self.model(x)
-        grad = torch.autograd.grad(val, self.model.parameters(), create_graph=False)
-        g = torch.cat([g.flatten() for g in grad])
-        return val, g.unsqueeze(-1)
-
-    def optimist_reward(self, grad):
-        grad = grad.detach()
-        with torch.no_grad():
-            val = self.explore_param * torch.sqrt(
-                grad.T @ self.Z_inv @ grad / self.model.num_params
-            )
-            return val
 
     def train(self):
         """
@@ -173,15 +107,13 @@ class NeuralUCB(BaseAlgo):
 
         self.model.eval()
         self.save()
+        self.train_t += 1
 
     def reset(self):
         """
         Resets the model
         """
-        self.Z_inv = torch.eye(
-            self.model.num_params, requires_grad=False, device=self.device
-        )
-        print("Reset model")
+        return None
 
     @property
     def metric(self):
@@ -197,5 +129,4 @@ class NeuralUCB(BaseAlgo):
 
         if hasattr(self.model, "embed"):
             return self.model.embed(x)
-
         return x
