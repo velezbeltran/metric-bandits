@@ -66,7 +66,7 @@ class SiameseNet(BaseNN):
         x = make_batch(x)
         for i in range(self.depth):
             x = self.layers[i](x)
-            if self.batch_norm:
+            if len(self.bn_layers) > 0:
                 x = self.bn_layers[i](x)
 
             x = self.activation(x)

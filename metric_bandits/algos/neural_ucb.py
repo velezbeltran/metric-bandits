@@ -109,8 +109,7 @@ class NeuralUCB(BaseAlgo):
             loss_total = 0.0
             n = 0.0
             for x, y in loader:
-                assert x.shape[0] == self.train_freq
-                assert y.shape[0] == self.train_freq
+
                 self.optimizer.zero_grad()
                 val, _ = self.model(x)
                 loss = F.mse_loss(val, y, reduction="mean")
