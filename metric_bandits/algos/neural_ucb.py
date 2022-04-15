@@ -5,6 +5,7 @@ the paper. Name of variables are chosen so as to agree with the paper.
 s T, regularization parameter λ, exploration parameter ν, confidence parameter δ, norm
 parameter S, step size η, number of gradient descent steps J, network width m, network depth L.
 """
+from collections import defaultdict
 from math import sqrt
 
 import torch
@@ -17,7 +18,13 @@ from metric_bandits.utils.nn import make_metric
 
 
 class NeuralUCB(BaseAlgo):
-    def __init__(self, model, reg, step_size, num_steps, train_freq, explore_param):
+    def __init__(
+        self, model, reg, step_size, num_steps, train_freq, explore_param, active=False
+    ):
+        """
+        If active is true, the model forgets completely about regret and just takes actions
+        with the aim of maximizing information gain.
+        """
         super().__init__()
         self.reg = reg
         self.step_size = step_size
@@ -46,6 +53,12 @@ class NeuralUCB(BaseAlgo):
         actions is a list-like object dictionary and contains the available actions
         """
         self.model.eval()
+        if self.active:
+            return self.choose_action_active(actions)
+        else:
+            return self.choose_action_default(actions)
+
+    def choose_action_default(self, actions):
         self.ucb_val_grads, self.ucb_estimate = {}, {}
         for action in actions:
             val, grad = self.get_val_grad(actions[action])
@@ -55,6 +68,36 @@ class NeuralUCB(BaseAlgo):
 
         # return the key with the highest value
         self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
+        self.contexts_played.append(actions[self.last_action])
+        return self.last_action
+
+    def choose_action_active(self, actions):
+        """
+        Chooses an action based on the current state of the model. The pair that is chossen
+        is the one that has the highest gradient. Currently only works in the implementation
+        where a similarity is provided at the end and there are two pairs.
+
+        This is not the cleanest way of doing this but it probably is the easiest one at the moment.
+        """
+        self.ucb_val_grads = defaultdict(list)
+        self.ucb_estimate = defaultdict(int)
+        self.unique_contexts = defaultdict(list)
+
+        # Keep track of relevant values per unique context
+        for action in actions:
+            ctxt = actions[action][:-1]
+            val, grad = self.get_val_grad(actions[action])
+            self.ucb_val_grads[ctxt].append((val, grad))
+            self.ucb_estimate[ctxt] += self.optimist_reward(grad)
+            self.unique_contexts[ctxt].append(action)
+
+        # Choose to make a desicion on the pair with the highes opt value
+        self.last_context = max(self.ucb_estimate, key=self.ucb_estimate.get)
+        # choose the action with the highest value
+        ctxt_vg = self.ucb_val_grads[self.last_context]
+        argmax = 0 if ctxt_vg[0][0] > ctxt_vg[1][0] else 1
+
+        self.last_action = self.unique_contexts[self.last_context][argmax]
         self.contexts_played.append(actions[self.last_action])
         return self.last_action
 
