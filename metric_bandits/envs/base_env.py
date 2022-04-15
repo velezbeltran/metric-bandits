@@ -5,7 +5,7 @@ for exploration
 import torch as torch
 from tqdm import tqdm
 
-from metric_bandits.utils.eval import eval_knn
+from metric_bandits.utils.eval import eval_knn, eval_linear
 
 
 class BaseEnv:
@@ -13,7 +13,7 @@ class BaseEnv:
     Class for creating an environment for exploration
     """
 
-    def __init__(self, data, algo, T, eval_freq=1000):
+    def __init__(self, data, algo, T, eval_freq=1000, to_eval=["knn, embedding"]):
         """
         Initializes the environment
         """
@@ -87,14 +87,30 @@ class BaseEnv:
         print("Evaluating...")
 
         # if the algorithm has a metric use it to test KNN
-        if hasattr(self.algo, "metric") and self.nice_data_available:
+        if not self.nice_data_available:
+            return None
+
+        if hasattr(self.algo, "metric") and "knn" in self.to_eval:
             metric = self.algo.metric
             acc = eval_knn(self.X_train, self.Y_train, self.X_test, self.Y_test, metric)
-            eval_metric["knn acc"] = acc
+            eval_metric["knn_acc"] = acc
+
+        if hasattr(self.algo, "embed") and "linear" in self.to_eval:
+            embed = self.algo.embed
+            X_train = (
+                embed(torch.tensor(self.X_train).to(self.device)).detach().cpu().numpy()
+            )
+            X_test = (
+                embed(torch.tensor(self.X_test).to(self.device)).detach().cpu().numpy()
+            )
+            acc = eval_linear(
+                self.X_train, self.Y_train, self.X_test, self.Y_test, embed
+            )
+            eval_metric["linear_acc"] = acc
 
         # if the algorithm has an embedding associated with it
         # use it to visualize the embedding
-        if hasattr(self.algo, "embed"):
+        if hasattr(self.algo, "embed") and "embedding" in self.to_eval:
             embed = self.algo.embed
             X_tensor = torch.tensor(self.X_train).to(self.device, dtype=torch.float)
             X_embed = embed(X_tensor)
