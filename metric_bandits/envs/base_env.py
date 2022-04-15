@@ -62,14 +62,18 @@ class BaseEnv:
         Trains the algorithm
         """
         self.mode = "train"
-        for _ in (pbar := tqdm(range(self.T))):
+        pbar = tqdm(total=self.T)
+        for _ in range(self.T):
             actions = self.next_actions()
             action = self.algo.choose_action(actions)
             r = self.step(action)
             self.algo.update(r)
             self.update(r)
+
             # print the regret nicely
             pbar.set_description(f"Regret/time: {self.cum_regrets[-1]/self.t:.2f}")
+            pbar.update(1)
+
             if (self.t + 1) % self.eval_freq == 0:
                 self.eval()
 

@@ -24,9 +24,10 @@ class NeuralUCB(BaseAlgo):
         self.num_steps = num_steps
         self.explore_param = explore_param
         self.train_freq = train_freq
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Set up model and optimizer
-        self.model = model
+        self.model = model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=step_size)
 
         # state of the algorithm
@@ -99,13 +100,14 @@ class NeuralUCB(BaseAlgo):
         """
         self.model.train()
         inputs = torch.stack(self.contexts_played)
-        tgts = torch.tensor(self.rewards).unsqueeze(-1)
+        tgts = torch.tensor(self.rewards, device=self.device).unsqueeze(-1)
         dataset = torch.utils.data.TensorDataset(inputs, tgts)
-        loader = torch.utils.data.DataLoader(
-            dataset, batch_size=self.train_freq, shuffle=True
-        )
+        loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
 
-        for epoch in (pbar := tqdm(range(self.num_steps))):
+        pbar = tqdm(total=self.num_steps)
+        for epoch in range(self.num_steps):
+            loss_total = 0.0
+            n = 0.0
             for x, y in loader:
                 assert x.shape[0] == self.train_freq
                 assert y.shape[0] == self.train_freq
@@ -114,7 +116,12 @@ class NeuralUCB(BaseAlgo):
                 loss = F.mse_loss(val, y, reduction="mean")
                 loss.backward()
                 self.optimizer.step()
-                pbar.set_description(f"Loss: {loss.item():.4f}")
+
+                n += 1
+                loss_total += loss.item()
+
+            pbar.set_description(f"Loss: {loss_total/n:.4f}")
+            pbar.update(1)
 
         self.model.eval()
         self.save()
@@ -123,7 +130,9 @@ class NeuralUCB(BaseAlgo):
         """
         Resets the model
         """
-        self.Z_inv = torch.eye(self.model.num_params, requires_grad=False)
+        self.Z_inv = torch.eye(
+            self.model.num_params, requires_grad=False, device=self.device
+        )
         print("Reset model")
 
     @property

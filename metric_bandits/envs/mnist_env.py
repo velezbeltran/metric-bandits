@@ -34,6 +34,7 @@ class MNISTEnv(BaseEnv):
         self.init_data()
         self.rewards = []
         self.granularity = [i for i in range(10)]
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # If algorithm is LinUCB, change settings:
         if isinstance(self.algo, LinUCB):
@@ -207,6 +208,7 @@ class MNISTSimEnv(MNISTEnv):
                         imgy, labely = batch[j]
                         imgx, imgy = imgx.flatten(), imgy.flatten()
                         context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
+                        context_partial = context_partial.to(self.device)
                         self.current_actions[context_partial] = context_partial
                         self.real_label[context_partial] = 2 * int(labelx == labely) - 1
         return self.current_actions
