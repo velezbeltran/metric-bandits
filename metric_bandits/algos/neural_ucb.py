@@ -137,3 +137,16 @@ class NeuralUCB(BaseAlgo):
     @property
     def metric(self):
         return make_metric(self.model)
+
+    def embed(self, x):
+        """
+        Returns an embedding if model has one else
+        returns input
+        """
+        if x.device != self.device:
+            x = x.to(self.device)
+
+        if hasattr(self.model, "embed"):
+            return self.model.embed(x)
+
+        return x

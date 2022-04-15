@@ -78,7 +78,9 @@ class MoonsEnv(BaseEnv):
 
 
 class MoonsSimEnv(MOONS):
-    def __init__(self, algo, T, batch_size, persistence, eval_freq=1000):
+    def __init__(
+        self, algo, T, batch_size, persistence, eval_freq=1000, possible_actions=[-1, 1]
+    ):
         """
         Mnist environment
 
@@ -87,7 +89,7 @@ class MoonsSimEnv(MOONS):
             persistence: how many rounds to keep the same dataset for
         """
         super().__init__(algo, T, batch_size, persistence, eval_freq=eval_freq)
-        self.possible_actions = [-1, 1]
+        self.possible_actions = possible_actions
 
     def next_actions(self):
         """

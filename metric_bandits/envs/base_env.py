@@ -2,6 +2,7 @@
 Contains the code for creating an environment for an abstract environment
 for exploration
 """
+import torch as torch
 from tqdm import tqdm
 
 from metric_bandits.utils.eval import eval_knn
@@ -78,15 +79,31 @@ class BaseEnv:
                 self.eval()
 
     def eval(self):
-        eval_metric = {}
+        """
+        Evaluates the algorithm by looking at the quality of the embeddings
+        and of a KNN predictor. The results are stored in `self.eval_metrics`.
+        """
+        eval_metric = {}  # metrics to keep track of this epoch
         print("Evaluating...")
+
+        # if the algorithm has a metric use it to test KNN
         if hasattr(self.algo, "metric") and self.nice_data_available:
             metric = self.algo.metric
             acc = eval_knn(self.X_train, self.Y_train, self.X_test, self.Y_test, metric)
             eval_metric["knn acc"] = acc
 
+        # if the algorithm has an embedding associated with it
+        # use it to visualize the embedding
+        if hasattr(self.algo, "embed"):
+            embed = self.algo.embed
+            X_tensor = torch.tensor(self.X_train, dtype=torch.float32).to(self.device)
+            X_embed = embed(X_tensor)
+            eval_metric["embedding"] = X_embed
+
         for k, v in eval_metric.items():
-            print(f"{k}: {v}")
+            if k != "embedding":
+                print(f"{k}: {v}")
+
         self.eval_metrics.append(eval_metric)
 
     @property
