@@ -84,14 +84,14 @@ for explore_param in eval_metrics.keys():
         lines.append(np.array(run["linear_acc"]))
 
     line = np.mean(np.array(lines), axis=0)
-    x = np.arange(len(run["linear_acc"]))
+    x = np.arange(len(run["linear_acc"])) * eval_freq + eval_freq
     ax.plot(x, line, c=colors[explore_param], label=label[explore_param])
 
 ax.set_title(title)
 ax.set_ylabel("Accuracy")
-ax.set_xlabel("Eval Period")
+ax.set_xlabel("Time")
 ax.set_ylim(0, 1)
-ax.set_xlim(0, len(x) - 1)
+ax.set_xlim(x[0], x[-1])
 ax.legend()
 plt.savefig(pth, dpi=300)
 plt.close(fig)
@@ -107,14 +107,14 @@ label = {0: "Non-active", 0.1: "Active"}
 for explore_param in eval_metrics.keys():
     for run in eval_metrics[explore_param]:
         line = np.array(run["linear_acc"])
-        x = np.arange(len(run["linear_acc"]))
+        x = np.arange(len(run["linear_acc"])) * eval_freq + eval_freq
         ax.plot(x, line, c=colors[explore_param], alpha=0.5)
     ax.plot(x, line, c=colors[explore_param], label=label[explore_param])
 
 ax.set_title(title)
 ax.set_ylabel("Accuracy")
-ax.set_xlabel("Eval Period")
+ax.set_xlabel("Time")
 ax.set_ylim(0, 1)
-ax.set_xlim(0, len(x) - 1)
+ax.set_xlim(x[0], x[-1])
 ax.legend()
 plt.savefig(pth, dpi=300)
