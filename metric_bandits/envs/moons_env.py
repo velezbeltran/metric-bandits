@@ -77,7 +77,7 @@ class MoonsEnv(BaseEnv):
         self.cum_regrets.append((1 - r) + self.cum_regrets[-1])
 
 
-class MoonsSimEnv(MOONS):
+class MoonsSimEnv(MoonsEnv):
     def __init__(
         self, algo, T, batch_size, persistence, eval_freq=1000, possible_actions=[-1, 1]
     ):
@@ -120,9 +120,10 @@ class MoonsSimEnv(MOONS):
                         imgy, labely = bX[j], by[j]
                         imgx, imgy = imgx.flatten(), imgy.flatten()
                         context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
-                        context_partial = context_partial.to(self.device)
+                        context_partial = context_partial.to(self.device).float()
                         self.current_actions[context_partial] = context_partial
                         self.real_label[context_partial] = 2 * int(labelx == labely) - 1
+
         return self.current_actions
 
     def step(self, action):

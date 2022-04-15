@@ -29,8 +29,8 @@ def make_metric(model):
     """
 
     def metric(x, y, **kwargs):
-        x = make_batch(to_tensor(x))
-        y = make_batch(to_tensor(y))
+        x = make_batch(to_tensor(x)).float()
+        y = make_batch(to_tensor(y)).float()
 
         sim, _ = model.predict_similarity(x, y)
         return -sim.item()

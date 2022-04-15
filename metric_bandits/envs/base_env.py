@@ -96,7 +96,7 @@ class BaseEnv:
         # use it to visualize the embedding
         if hasattr(self.algo, "embed"):
             embed = self.algo.embed
-            X_tensor = torch.tensor(self.X_train, dtype=torch.float32).to(self.device)
+            X_tensor = torch.tensor(self.X_train).to(self.device, dtype=torch.float)
             X_embed = embed(X_tensor)
             eval_metric["embedding"] = X_embed
 
