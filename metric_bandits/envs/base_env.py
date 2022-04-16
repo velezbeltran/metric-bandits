@@ -4,20 +4,24 @@ for exploration
 """
 from collections import defaultdict
 
-import matplotlib.pyplot as plt
 import torch as torch
 from tqdm import tqdm
 
 from metric_bandits.utils.eval import eval_knn, eval_linear
 
-# make pretty plots ggplot
-plt.style.use("ggplot")
-plt.gca().set_aspect("equal", adjustable="box")
-
 
 class BaseEnv:
     """
     Class for creating an environment for exploration
+
+    A subclass should initialize self.X_train and self.Y_train
+    as a numpy array format.
+
+    Parameters:
+    -----------
+    to_eval: list
+        list of strings with the names of criteria to evaluate e.g
+        ['knn','linear', 'embedding']
     """
 
     def __init__(self, data, algo, T, eval_freq=1000, to_eval=[]):
@@ -33,6 +37,7 @@ class BaseEnv:
         self.to_eval = to_eval  # What to evaluate
 
         # Nice way of of storing the data
+        # should be initialized for evaluation as standard
         self.X_train, self.Y_train = None, None
         self.X_test, self.Y_test = None, None
         self.nice_data_available = False
