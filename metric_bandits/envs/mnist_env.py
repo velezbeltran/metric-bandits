@@ -4,18 +4,19 @@ Convention
 last dimension of action is the proposed distance.
 """
 
+
 import uuid
+from collections import defaultdict
 
 import torch
 
-from metric_bandits.constants.constants import SEED
+from metric_bandits.algos.linucb import LinUCB
 from metric_bandits.data.mnist import MNIST, make_pca_mnist
 from metric_bandits.envs.base_env import BaseEnv
-from metric_bandits.algos.linucb import LinUCB
 
 
 class MNISTEnv(BaseEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca_dims=None):
+    def __init__(self, algo, T, batch_size, persistence, pca_dims=None, eval_freq=1000):
         """
         Initializes the environment
 
@@ -24,18 +25,19 @@ class MNISTEnv(BaseEnv):
             persistence: how many rounds to keep the same dataset for
         """
         # set seed
-        torch.manual_seed(SEED)
         data = MNIST if not pca_dims else make_pca_mnist(MNIST, pca_dims)
-        super().__init__(data, algo, T)
+        # center and scale
+        super().__init__(data, algo, T, eval_freq)
         self.persistence = persistence
         self.batch_size = batch_size
         self.idx = {}
         self.init_data()
         self.rewards = []
         self.granularity = [i for i in range(10)]
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # If algorithm is LinUCB, change settings:
-        if(isinstance(self.algo, LinUCB)):
+        if isinstance(self.algo, LinUCB):
             self.granularity = [-1, 1]
 
     def next_actions(self):
@@ -49,7 +51,7 @@ class MNISTEnv(BaseEnv):
 
     def init_data(self):
         """
-        Initializes the data loader
+        Initializes the data and creates the pretty version
         """
         train_len = int(len(self.data) * 0.8)
         permutaion = torch.randperm(len(self.data))
@@ -57,6 +59,21 @@ class MNISTEnv(BaseEnv):
         self.idx = {}
         self.idx["train"] = permutaion[:train_len]
         self.idx["test"] = permutaion[train_len:]
+
+        # create pretty version (i.e compatible with sklarn)
+        X = defaultdict(list)
+        Y = defaultdict(list)
+        for mode in ["train", "test"]:
+            for i in range(len(self.idx[mode])):
+                X[mode].append(self.data[self.idx[mode][i]][0])
+                Y[mode].append(self.data[self.idx[mode][i]][1])
+
+        self.X_train = torch.vstack(X["train"]).numpy()[:500]
+        self.Y_train = torch.tensor(Y["train"]).numpy()[:500]
+        self.X_test = torch.vstack(X["test"]).numpy()[:100]
+        self.Y_test = torch.tensor(Y["test"]).numpy()[:100]
+
+        self.nice_data_available = True
 
     def reset(self):
         """
@@ -89,7 +106,7 @@ class MNISTNumDistEnv(MNISTEnv):
 
         # Get new set of actions
         if self.t % self.persistence == 0:
-            cur_idx = (self.t // self.persistence) % int(len(self.data) * 0.8 - 1) 
+            cur_idx = (self.t // self.persistence) % int(len(self.data) * 0.8 - 1)
 
             # choose the next batch of images to use for training
             b_idxs = self.idx[self.mode][cur_idx : cur_idx + self.batch_size]
@@ -151,7 +168,7 @@ class MNISTNumDistEnv(MNISTEnv):
 
 
 class MNISTSimEnv(MNISTEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca_dims=None):
+    def __init__(self, algo, T, batch_size, persistence, pca_dims=None, eval_freq=1000):
         """
         Mnist environment
 
@@ -159,7 +176,9 @@ class MNISTSimEnv(MNISTEnv):
             batch_size: size of the batch to use for training
             persistence: how many rounds to keep the same dataset for
         """
-        super().__init__(algo, T, batch_size, persistence, pca_dims)
+        super().__init__(
+            algo, T, batch_size, persistence, pca_dims, eval_freq=eval_freq
+        )
         self.possible_actions = [-1, 1]
 
     def next_actions(self):
@@ -189,6 +208,7 @@ class MNISTSimEnv(MNISTEnv):
                         imgy, labely = batch[j]
                         imgx, imgy = imgx.flatten(), imgy.flatten()
                         context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
+                        context_partial = context_partial.to(self.device)
                         self.current_actions[context_partial] = context_partial
                         self.real_label[context_partial] = 2 * int(labelx == labely) - 1
         return self.current_actions

@@ -10,10 +10,10 @@ from metric_bandits.nets.siamese import SiameseNet
 # Constants for the neural network
 pca_dims = 20
 input_dim = pca_dims
-depth = 2
+depth = 4
 hidden_dim = 20
-out_dim = 2
-dropout = 0.3
+out_dim = 5
+dropout = 0.4
 
 # Constants for the environment
 T = 1000
@@ -22,7 +22,7 @@ persistence = 5
 
 # Constnats for UCB
 reg = 0.1
-step_size = 0.01
+step_size = 0.3
 num_steps = 20
 train_freq = 50
 explore_param = 1
