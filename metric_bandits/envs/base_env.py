@@ -4,23 +4,27 @@ for exploration
 """
 from collections import defaultdict
 
-import matplotlib.pyplot as plt
 import torch as torch
 from tqdm import tqdm
 
 from metric_bandits.utils.eval import eval_knn, eval_linear
 
-# make pretty plots ggplot
-plt.style.use("ggplot")
-plt.gca().set_aspect("equal", adjustable="box")
-
 
 class BaseEnv:
     """
     Class for creating an environment for exploration
+
+    A subclass should initialize self.X_train and self.Y_train
+    as a numpy array format.
+
+    Parameters:
+    -----------
+    to_eval: list
+        list of strings with the names of criteria to evaluate e.g
+        ['knn','linear', 'embedding']
     """
 
-    def __init__(self, data, algo, T, eval_freq=1000, to_eval=["knn, embedding"]):
+    def __init__(self, data, algo, T, eval_freq=1000, to_eval=[]):
         """
         Initializes the environment
         """
@@ -33,6 +37,7 @@ class BaseEnv:
         self.to_eval = to_eval  # What to evaluate
 
         # Nice way of of storing the data
+        # should be initialized for evaluation as standard
         self.X_train, self.Y_train = None, None
         self.X_test, self.Y_test = None, None
         self.nice_data_available = False
@@ -97,36 +102,46 @@ class BaseEnv:
 
         # if the algorithm has a metric use it to test KNN
         if not self.nice_data_available:
-            return None
+            raise Exception("No nice data available so can't do evals")
 
-        if hasattr(self.algo, "metric") and "knn" in self.to_eval:
-            metric = self.algo.metric
-            acc = eval_knn(self.X_train, self.Y_train, self.X_test, self.Y_test, metric)
-            self.eval_metrics["knn_acc"].append(acc)
-
-        if hasattr(self.algo, "embed") and "linear" in self.to_eval:
-            embed = self.algo.embed
-            X_train = embed(torch.tensor(self.X_train).to(self.device).float())
-            X_train = X_train.detach().cpu().numpy()
-            X_test = embed(torch.tensor(self.X_test).to(self.device).float())
-            X_test = X_test.detach().cpu().numpy()
-
-            acc = eval_linear(X_train, self.Y_train, X_test, self.Y_test)
-
-            # plot the embedding
-            self.eval_metrics["linear_acc"].append(acc)
-
-        # if the algorithm has an embedding associated with it
-        # use it to visualize the embedding
-        if hasattr(self.algo, "embed") and "embedding" in self.to_eval:
-            embed = self.algo.embed
-            X_tensor = torch.tensor(self.X_test).to(self.device, dtype=torch.float)
-            X_embed = embed(X_tensor).detach().cpu().numpy()
-            self.eval_metrics["embedding"].append((X_embed, self.Y_test))
+        for eval_func_name in self.to_eval:
+            getattr(self, eval_func_name)()
 
         for k, v in self.eval_metrics.items():
             if k != "embedding":
                 print(f"{k}: {v[-1]:.4f}")
+
+    def eval_knn(self):
+        if not hasattr(self.algo, "metric"):
+            raise Exception("Algorithm does not have a metric so can't evaluate knn")
+
+        metric = self.algo.metric
+        acc = eval_knn(self.X_train, self.Y_train, self.X_test, self.Y_test, metric)
+        self.eval_metrics["knn_acc"].append(acc)
+
+    def eval_linear(self):
+        if not hasattr(self.algo, "embed"):
+            raise Exception(
+                "Algorithm does not have embedding so can't evaluate linear predictor"
+            )
+        embed = self.algo.embed
+        X_train = embed(torch.tensor(self.X_train).to(self.device).float())
+        X_train = X_train.detach().cpu().numpy()
+        X_test = embed(torch.tensor(self.X_test).to(self.device).float())
+        X_test = X_test.detach().cpu().numpy()
+        acc = eval_linear(X_train, self.Y_train, X_test, self.Y_test)
+        # save the embedding
+        self.eval_metrics["linear_acc"].append(acc)
+
+    def eval_embedding(self):
+        if not hasattr(self.algo, "embed"):
+            raise Exception(
+                "Algorithm does not have embedding so can't evaluate embedding"
+            )
+        embed = self.algo.embed
+        X_tensor = torch.tensor(self.X_test).to(self.device, dtype=torch.float)
+        X_embed = embed(X_tensor).detach().cpu().numpy()
+        self.eval_metrics["embedding"].append((X_embed, self.Y_test))
 
     @property
     def mode(self):
