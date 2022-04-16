@@ -10,9 +10,7 @@ import torch
 from metric_bandits.constants.paths import FIGURES_PATH
 
 # make matplotlib pretty
-plt.style.use("ggplot")
-font = {"size": 9}
-plt.rc("font", **font)
+
 
 colors = [
     "b",
@@ -34,6 +32,15 @@ colors = [
     "#bcbd22",
     "#17becf",
 ]
+
+
+def make_plots_pretty():
+    """
+    Sets the standard plotting parameters
+    """
+    plt.style.use("ggplot")
+    font = {"size": 9}
+    plt.rc("font", **font)
 
 
 def plot_regret(regrets, folder, title="", name=""):
