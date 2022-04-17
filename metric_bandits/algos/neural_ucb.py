@@ -45,7 +45,7 @@ class NeuralUCB(BaseAlgo):
 
         # Set up model and optimizer
         self.model = model.to(self.device)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=step_size)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=step_size)
 
         # state of the algorithm
         self.Z_inv = None
@@ -155,12 +155,14 @@ class NeuralUCB(BaseAlgo):
         Trains the model
         """
         self.model.train()
+        self.optimizer.zero_grad()
+
         inputs = torch.stack(self.contexts_played)
         tgts = torch.tensor(self.rewards, device=self.device).unsqueeze(-1)
         dataset = torch.utils.data.TensorDataset(inputs, tgts)
         loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=True)
 
-        pbar = tqdm(total=self.num_steps, disable=not self.verbose)
+        pbar = tqdm(total=self.num_steps, disable=(not self.verbose))
         for epoch in range(self.num_steps):
             loss_total = 0.0
             n = 0.0
@@ -180,7 +182,7 @@ class NeuralUCB(BaseAlgo):
 
         self.model.eval()
         self.save()
-        if self.reset_freq & (self.train_t + 1) % self.reset_freq == 0:
+        if self.reset_freq is not None and (self.train_t + 1) % self.reset_freq == 0:
             self.reset()
 
         self.train_t += 1

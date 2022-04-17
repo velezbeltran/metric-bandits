@@ -1,7 +1,7 @@
 import os
 import pickle as pkl
 
-from metric_bandits.paths import OBJECT_DUMP_PATH
+from metric_bandits.constants.paths import OBJECT_DUMP_PATH
 
 
 def save_object(obj, filename):

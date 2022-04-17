@@ -54,13 +54,14 @@ class Neural(BaseAlgo):
         """
         actions is a list-like object dictionary and contains the available actions
         """
-        greedy = random.random() < self.explore_param
+        self.model.eval()
+        greedy = random.random() > self.explore_param
         if greedy:
             self.vals = {}
             for action in actions:
-                val = self.model(actions[action])
+                val, _ = self.model(actions[action])
                 self.vals[action] = val.item()
-            self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
+            self.last_action = max(self.vals, key=self.vals.get)
         else:
             self.last_action = random.choice(list(actions.keys()))
         self.contexts_played.append(actions[self.last_action])
