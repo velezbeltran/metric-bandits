@@ -84,6 +84,8 @@ class MoonsEnv(BaseEnv):
         """
         Updates the environment
         """
+        if isinstance(r, torch.Tensor):
+            r = r.item()
         self.rewards.append(r)
         self.cum_regrets.append((1 - r) + self.cum_regrets[-1])
 
@@ -155,10 +157,3 @@ class MoonsSimEnv(MoonsEnv):
         reward = prop_sim * real_sim
         self.t += 1
         return reward
-
-    def update(self, r):
-        """
-        Updates the environment
-        """
-        self.rewards.append(r)
-        self.cum_regrets.append((1 - r) + self.cum_regrets[-1])
