@@ -1,0 +1,102 @@
+\documentclass{article}
+\usepackage[final]{neurips_2021}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{lipsum}
+\usepackage{amsmath}
+\usepackage{bbm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+
+
+\title{Active Heirarchical Metric Learning}
+
+\author{
+  Nicolas Beltran\\
+  Department of Computer Science\\
+  Columbia University\\
+  New York City, NY 10027 \\
+  \texttt{nb2838@columbia.edu}\\
+  \And
+  Ketan Jog\\
+  Department of Computer Science\\
+  Columbia University\\
+  New York City, NY 10027 \\
+  \texttt{kj2473@columbia.edu}\\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    Many problems require a well defined notion of a distance between points in space.
+    Constructing or finding such a measure falls into the field of metric learning.
+    Although many algorithms exist in the field when a learner has access to a fixed dataset,  there is room for improvement in terms of samples efficiency that the learner needs to know, imposition of desired structure, especially when the data appears in an \textit{online} manner.
+    We propose a project that reduces the problem of online/active metric learning to bandits. In case our plan turn out to be too ambitious, we have a fallback - an empirical investigation of some algorithms that have dealt with the problem in an online setting or in situations where the learner can selective query the points that it wants to know information about.
+\end{abstract}
+
+
+\section{Introduction}
+
+\section{Related Work}
+
+\section{Long-term goals}
+
+\section{Preliminaries}
+
+
+% --------------------------------------------------------------
+% --------------------------------------------------------------
+\section{Problem Statement}
+% --------------------------------------------------------------
+% --------------------------------------------------------------
+We consider two different problems.
+The first problem consists of making a series of sequential predictions while learning a
+similiarity measure. We refer to this problem as online similarity prediction.
+The second problem consists of learning a similarity measure while querying points in space.
+We refer to this problem as active similarity learning.
+A precise description of both problems is provided below.
+
+\subsection{Online similarity learning}
+We consider an online similarity learning problem played over $T$ rounds.
+At round $t$ the environment samples $K$ pairs of points $(\mathbf{x}_{t,k}^1, \mathbf{x}_{t,k}^2) \in \mathbb{R}^{2n}$.
+The agent then chooses pair $k_t \in [K]$ and is given a reward $r_{t,k_{t}} \in \{1, -1\}$.
+We assume that there exists some similarity function unknown to the agent $\phi: \mathbb{R}^{2n} \to \{-1, 1 \}$
+and that the rewards are such that if at time $t \in [T]$ the agent chooses pair $(\mathbf{x}_{t,k}^1, \mathbf{x}_{t,k}^2)$
+then the reward is $\phi(\mathbf{x}_{t,k}^1, \mathbf{x}_{t,k}^2)$.
+
+As usual we define the regret as
+\[ R_T = \mathbb{E}\left[\sum_{t =1}^T \phi(\mathbf{x}_{t,k^\star_t}^1, \mathbf{x}_{t,k^\star_t}^2) - \phi(\mathbf{x}_{t,k_t}^1, \mathbf{x}_{t,k_t}^2)\right]\]
+where $k_t^\star = \text{argmax}_{k\in [K]} \phi(\mathbf{x}_{t,k}^1, \mathbf{x}_{t,k}^2)$
+
+\subsection{Active similarity learning}
+We assume that the learner has access to a dataset $D = \{\mathbf{x}_i \in \mathbb{R}^n| i \in [N]\}$ of unlabeled points and that there exists some function $\phi: \mathbb{R}^{2n} \to \{-1, 1\}$ which the learner is trying to learn.
+The learner can query $T$ pairs of points in this set $D$ to obtain a dataset $D_T = \{(\mathbf{x}_t^1, \mathbf{x}_t^2, y_t) ~|  ~t \in [T]\}$ . We assume that the learner mantains and estimate $\hat{\phi}_t \in \mathcal{F}$ of $\phi$, where $\mathcal{F}$ is its function class  and denote the loss between an estimate $\hat{\phi}$ a $\phi$ as
+\[ \mathcal{L}(\phi, \hat{\phi}) = \mathbb{E}_\mathcal{(\mathbf{x}, \mathbf{y}) \sim \mathcal{D} \times \mathcal{D}}[(\hat{\phi}(\mathbf{x},\mathbf{y}) - \phi(\mathbf{x}, \mathbf{y}))^2] \]
+It's objective is to find $\min_{\phi \in \mathcal{F}} \mathcal{L}(\hat{\phi}_T, \phi)$
+
+
+
+
+
+\section{Description of the algorithm}
+
+\section{Experiments}
+
+\section{Conclusion}
+
+
+\bibliography{refs}
+\bibliographystyle{plain}
+
+\end{document}
