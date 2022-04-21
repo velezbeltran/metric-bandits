@@ -58,6 +58,7 @@
 % --------------------------------------------------------------
 % --------------------------------------------------------------
 \section{Problem Statement}
+\label{problem-statement}
 % --------------------------------------------------------------
 % --------------------------------------------------------------
 We consider two different problems.
@@ -68,6 +69,7 @@ We refer to this problem as active similarity learning.
 A precise description of both problems is provided below.
 
 \subsection{Online similarity learning}
+\label{problem-statement:online-similarity-learning}
 We consider an online similarity learning problem played over $T$ rounds.
 At round $t$ the environment samples $K$ pairs of points $(\mathbf{x}_{t,k}^1, \mathbf{x}_{t,k}^2) \in \mathbb{R}^{2n}$.
 The agent then chooses pair $k_t \in [K]$ and is given a reward $r_{t,k_{t}} \in \{1, -1\}$.
@@ -80,16 +82,32 @@ As usual we define the regret as
 where $k_t^\star = \text{argmax}_{k\in [K]} \phi(\mathbf{x}_{t,k}^1, \mathbf{x}_{t,k}^2)$
 
 \subsection{Active similarity learning}
+\label{problem-statement:active-similarity-learning}
 We assume that the learner has access to a dataset $D = \{\mathbf{x}_i \in \mathbb{R}^n| i \in [N]\}$ of unlabeled points and that there exists some function $\phi: \mathbb{R}^{2n} \to \{-1, 1\}$ which the learner is trying to learn.
 The learner can query $T$ pairs of points in this set $D$ to obtain a dataset $D_T = \{(\mathbf{x}_t^1, \mathbf{x}_t^2, y_t) ~|  ~t \in [T]\}$ . We assume that the learner mantains and estimate $\hat{\phi}_t \in \mathcal{F}$ of $\phi$, where $\mathcal{F}$ is its function class  and denote the loss between an estimate $\hat{\phi}$ a $\phi$ as
 \[ \mathcal{L}(\phi, \hat{\phi}) = \mathbb{E}_\mathcal{(\mathbf{x}, \mathbf{y}) \sim \mathcal{D} \times \mathcal{D}}[(\hat{\phi}(\mathbf{x},\mathbf{y}) - \phi(\mathbf{x}, \mathbf{y}))^2] \]
 It's objective is to find $\min_{\phi \in \mathcal{F}} \mathcal{L}(\hat{\phi}_T, \phi)$
 
 
+\section{Description of the algorithms}
+In total we provide 4 different algorithms which we describe below.
+However, in reality they can be thought of as 2 different algorithms which slight modifications to accomodate for the online similarity learning problem and the active similarity learning problem. We refer to our algorithms as OnSim-LinUCB, ActSim-LinUCB,
+OnSim-NeuralUCB, ActSim-NeuralUCB, depeding on whether they are based on LinUCB or NeuralUCB and on whether they attempt to solve
+the active or online formulation of our problem.
+
+We describe the algorithms by problem.
+
+\subsection{Online similarity learning}
+For our problem of online similarity learning we adopt LinUCB \cite{linucb} and  NeuralUCB \cite{neuralucb}.
+For this problem both of our proposed algorithms are extensions of the aforementioned algorithms. We refer
+
+\subsubsection{OnSim-LinUCB}
+With respect to LinUCB \cite{linucb} we propose a reward as described in (\ref{problem-statement:online-similarity-learning}), and context structure which assumes that $\phi(\mathbf{x}, \mathbf{y}) = \mathbf{x}^\top \mathbf{A} \mathbf{y}$.
+We can see that this is a reasonable thing to do if we consider that
+\[\phi(\mathbf{x}, \mathbf{y}) = \mathbf{x}^\top \mathbf{A} \mathbf{y} = \sum_{i =1}^n\sum_{j=1}^n \mathbf{x}_i \mathbf{y}_j \mathbf{A}_{i,j} \]
+which we is linear in $\mathbf{A}$.
 
 
-
-\section{Description of the algorithm}
 
 \section{Experiments}
 
