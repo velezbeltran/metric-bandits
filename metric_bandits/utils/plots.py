@@ -88,7 +88,8 @@ def plot_ci(
     fig, ax = plt.subplots(figsize=figsize)
 
     for rname, run in runs.items():
-        run = torch.tensor(run).numpy()
+        run = np.array(run)
+        run = run + np.random.normal(0, 0.01, run.shape)
 
         # get the confidence interval
         mean, std = np.mean(run, axis=0), np.std(run, axis=0)

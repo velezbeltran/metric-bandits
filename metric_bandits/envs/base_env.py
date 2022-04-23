@@ -98,14 +98,13 @@ class BaseEnv:
         Evaluates the algorithm by looking at the quality of the embeddings
         and of a KNN predictor. The results are stored in `self.eval_metrics`.
         """
-        print("Evaluating...")
 
         # if the algorithm has a metric use it to test KNN
         if not self.nice_data_available:
             raise Exception("No nice data available so can't do evals")
 
         for eval_func_name in self.to_eval:
-            getattr(self, eval_func_name)()
+            getattr(self, "eval_" + eval_func_name)()
 
         for k, v in self.eval_metrics.items():
             if k != "embedding":
