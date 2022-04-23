@@ -12,11 +12,13 @@
 \usepackage{xcolor}         % colors
 \usepackage{lipsum}
 \usepackage{amsmath}
+\usepackage{setspace}
 \usepackage{bbm}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
+\usepackage[linesnumbered,ruled,commentsnumbered]{algorithm2e}
+\usepackage{parskip}
 
 
+\IncMargin{1.5em}
 
 \title{Active Heirarchical Metric Learning}
 
@@ -98,15 +100,43 @@ the active or online formulation of our problem.
 We describe the algorithms by problem.
 
 \subsection{Online similarity learning}
-For our problem of online similarity learning we adopt LinUCB \cite{linucb} and  NeuralUCB \cite{neuralucb}.
-For this problem both of our proposed algorithms are extensions of the aforementioned algorithms. We refer
+For our problem of online similarity learning we adopt the frameworks of  LinUCB  as described in \cite{linucb} and  NeuralUCB as described in \cite{neuralucb}. We explain this in detail below.
 
 \subsubsection{OnSim-LinUCB}
-With respect to LinUCB \cite{linucb} we propose a reward as described in (\ref{problem-statement:online-similarity-learning}), and context structure which assumes that $\phi(\mathbf{x}, \mathbf{y}) = \mathbf{x}^\top \mathbf{A} \mathbf{y}$.
+Our first algorithm performs a straighforward reduction of the online similarity learning problem to that of regular contextual bandits. We do this by assuming a linear structure on the similarity.
+
+Mathematically, if we adopt the formulation we proposed above (\ref{problem-statement:online-similarity-learning}), we choose to model the similarity of two points as  $\phi(\mathbf{x}, \mathbf{y}) = \mathbf{x}^\top \mathbf{A} \mathbf{y}$.
 We can see that this is a reasonable thing to do if we consider that
 \[\phi(\mathbf{x}, \mathbf{y}) = \mathbf{x}^\top \mathbf{A} \mathbf{y} = \sum_{i =1}^n\sum_{j=1}^n \mathbf{x}_i \mathbf{y}_j \mathbf{A}_{i,j} \]
-which we is linear in $\mathbf{A}$.
+which we is linear in $\mathbf{A}$ and thus allows us to use the framework of LinUCB for our problem.
+Attending to this fact, one can see that Algorithm \ref{algo:onsim-linucb} is almost identical to the first algorithms in \cite{linucb}.
+\begin{algorithm}
+  \label{algo:onsim-linucb}
+  \setstretch{1.2}
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+    \underline{OnSim-LinUCB} $(a,b)$\;
+    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    $A \gets I_{n^2}$\;
+    $b \gets 0_{n^2}$\;
+    \For{$t \in [T]$}{
+      $\theta_t \gets A^{-1}b$
+      Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
+      Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
+      \For{$k \in [K]$}{
+        $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
+      }
+      Choose action $a_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.
+      Observe payoff $ r_t \in \{0,1 \}$
+      $A \gets A + z_{t,a_t}z_{t,a_t}^\top$\;
+      $b \gets z_{t,a_t}r_t$;\
+    }
+    \caption{OnSim-LinUCB}
+\end{algorithm}
 
+\subsubsection{OnSim-NeuralUCB}
+Unsurprisingly, the expressive power of the above framework is quite limited.
+This limitation comes from the fact that
 
 
 \section{Experiments}
