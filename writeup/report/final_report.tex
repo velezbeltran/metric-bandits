@@ -112,8 +112,6 @@ Attending to this fact, one can see that Algorithm \ref{algo:onsim-linucb} is al
   \label{algo:onsim-linucb}
   \setstretch{1.2}
     \SetKwInOut{Input}{Input}
-    \SetKwInOut{Output}{Output}
-    \underline{OnSim-LinUCB} $(a,b)$\;
     \Input{Rounds $T$ and exploration parameter $\alpha$}
     $A \gets I_{n^2}$\;
     $b \gets 0_{n^2}$\;
@@ -237,8 +235,6 @@ We propose these changes because we believe they are more sensible for our parti
   \label{algo:active-linucb}
   \setstretch{1.2}
     \SetKwInOut{Input}{Input}
-    \SetKwInOut{Output}{Output}
-    \underline{OnSim-LinUCB} $(a,b)$\;
     \Input{Rounds $T$ and exploration parameter $\alpha$}
     $A \gets I_{n^2}$\;
     $b \gets 0_{n^2}$\;
@@ -247,15 +243,15 @@ We propose these changes because we believe they are more sensible for our parti
       Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
       Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
       \For{$k \in [K]$}{
-        $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
+        $p_{t,a} \gets  \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
         \label{change:active-linucb}
       }
-      Choose action $a_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.\;
-      Observe payoff $ r_t \in \{-1,1 \}$\;
+      Choose action pair $k_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.\;
+      Observe label $ r_t \in \{-1,1 \}$\;
       $A \gets A + z_{t,a_t}z_{t,a_t}^\top$\;
       $b \gets z_{t,a_t}r_t$\;
     }
-    \caption{OnSim-LinUCB}
+    \caption{Active-LinUCB}
 \end{algorithm}
 
 
