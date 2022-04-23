@@ -93,11 +93,9 @@ It's objective is to find $\min_{\phi \in \mathcal{F}} \mathcal{L}(\hat{\phi}_T,
 
 \section{Description of the algorithms}
 In total we provide 4 different algorithms which we describe below.
-However, in reality they can be thought of as 2 different algorithms which slight modifications to accomodate for the online similarity learning problem and the active similarity learning problem. We refer to our algorithms as OnSim-LinUCB, ActSim-LinUCB,
-OnSim-NeuralUCB, ActSim-NeuralUCB, depeding on whether they are based on LinUCB or NeuralUCB and on whether they attempt to solve
-the active or online formulation of our problem.
-
-We describe the algorithms by problem.
+However, in reality they can be thought of as 2 different algorithms (a neural and linear model for similarity)  which contain slight modifications to accomodate for the online similarity learning problem and the active similarity learning problem.
+We refer to our algorithms as OnSim-LinUCB, ActSim-LinUCB,OnSim-NeuralUCB, ActSim-NeuralUCB, depeding on whether they are based on LinUCB or NeuralUCB and on whether they attempt to solve the active or online formulation of our problem.
+We provide the four versions below with their slightly different modifications for completeness.
 
 \subsection{Online similarity learning}
 For our problem of online similarity learning we adopt the frameworks of  LinUCB  as described in \cite{linucb} and  NeuralUCB as described in \cite{neuralucb}. We explain this in detail below.
@@ -121,15 +119,15 @@ Attending to this fact, one can see that Algorithm \ref{algo:onsim-linucb} is al
     $b \gets 0_{n^2}$\;
     \For{$t \in [T]$}{
       $\theta_t \gets A^{-1}b$
-      Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
+      Observe $K$ pairs of vectors $x^k \in \mathbb{R}^n$, $y^k \in \mathbb{R}^n$\;
       Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
       \For{$k \in [K]$}{
         $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
       }
-      Choose action $a_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.
-      Observe payoff $ r_t \in \{-1,1 \}$
+      Choose action $a_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily\;
+      Observe payoff $ r_t \in \{-1,1 \}$\;
       $A \gets A + z_{t,a_t}z_{t,a_t}^\top$\;
-      $b \gets z_{t,a_t}r_t$;\
+      $b \gets z_{t,a_t}r_t$\;
     }
     \caption{OnSim-LinUCB}
 \end{algorithm}
@@ -151,8 +149,7 @@ Using this notation OnSim-NeuralUCB is described below in Algorithm \ref{algo:on
   \label{algo:onsim-neuralucb}
   \setstretch{1.2}
     \SetKwInOut{Input}{Input}
-    \underline{OnSim-LinUCB} $(a,b)$\;
-    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    \Input{Rounds $T$, exploration parameter $\alpha$, $\tau_r$ frequency of resets, $\tau_T$ frequency of training, $E$ epochs for training, $b_s$ batch size for training, $\epsilon$ learning rate.}
     $A \gets I_{p}$\;
     \For{$t \in [T]$}{
       Observe $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R^n}$\;
@@ -162,38 +159,37 @@ Using this notation OnSim-NeuralUCB is described below in Algorithm \ref{algo:on
       Choose pair $k_t = \text{argmax}_kp_{t,k}$ with ties broken arbitrarily\;
       Observe payoff $ r_t \in \{-1,1 \}$\;
       \If{$t \mod \tau_r = 0$ }{
-        $\theta \gets \text{Train}()$\;
+        $\theta \gets \text{Train}(\epsilon,E, \{(x_i^{k_i}, y_i^{k_i}, r_i)\}_{i=1}^t,b_s)$\;
       }
       \If{$t \mod \tau_T = 0$ }{
         $A \gets I_p$
       }
       $A \gets A + \nabla_\theta \phi(x_t^k, y_t^k)(\nabla_\theta\phi(x_t^k,y_t^k))^\top$\;
     }
-    \caption{OnSim-nueralucb}
+    \caption{OnSim-NeuralUCB}
   \end{algorithm}
 
 Intuitively, this algorithm acts optimally with the current set of parameters that it is given and every so often it stops back to train the network. In Algorithm \ref{algo:train} we simply describe the normal process for training a classifier with mean squared error loss and assume that a normal gradient based algorithm is used.
 In the description we use Stochastic Gradient Descent as done in \cite{neuralucb} but we believe that despite lack of theoretical justification, more modern optimization strategies such as Adam \cite{adam} do a better job in practice.
 
-Although our algorithm is very similar to that proposed in $\cite{neuralucb}$ it differs in some key aspects.
+Although our algorithm is very similar to that proposed in \cite{neuralucb} it differs in some key aspects.
 First, and perhaps most importantly, we adopt a very different architecture from that proposed in the original paper.
 In it, the authors assume that the layers of the neural network have no bias, assume a particular initialization scheme, don't use a cosine similarity function at the end of the neural network, nor do they implement a siamese network as we do.
 Second, we restart $A$ throughout training. Third, we use a constant exploration parameter throughout the duration of the algorithm.
 
 We propose these changes because we believe they are more sensible for our particular application (and do provide better empirical performance) but they destroy the theoretical guarantees provided by original paper in which they were used, alongside arguments to the  neural tangent kernel matrix \cite{neuraltangentkernel} to provide a $\tilde{O}(\sqrt{T})$, bound on the regret of algorithm.
 
-  \begin{algorithm}
+\begin{algorithm}
   \label{algo:train}
   \setstretch{1.2}
     \SetKwInOut{Input}{Input}
-    \underline{Train} $(a,b)$\;
-    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    \Input{$\epsilon$ learning rate, $E$ number of epochs, dataset $\{(x_i^{k_i}, y_i^{k_i}, r_i)\}_{i=1}^t$, $b_s$ batch size}
 
     optimizer $\gets$ SGD($\epsilon, \theta$)\;
     \For{$j = 1, \dots, E$}{
       $\mathcal{D} \gets \{(x_1^{k_1}, y_1^{k_1}, r_1), \dots, (x_t^{k_t}, y_t^{k_t}, r_t)$ \;
       \While{$\mathcal{D}$ is not empty}{
-        Sample minibatch $M$ of training examples\;
+        Sample minibatch $M$ of size $b_s$ from the training examples\;
         $l = \frac{1}{M}\sum_{(x_i^{k_{i}}, y_i^{k_i}, r_i) \in M} (\phi(x_i^{k_{i}}, y_i^{k_i}) - r_i)^2$\;
         $\theta \gets$ update using optimizer with loss $l$\;
 
@@ -204,35 +200,36 @@ We propose these changes because we believe they are more sensible for our parti
   \end{algorithm}
 
   \subsection{Active Similarity Learning}
-  Despite the difference we propose an optimism inspired approach to active learning which modifies the previous algorithms only slightly.
-
-  The general idea is that we use the optimism bonus as a measure of uncertainty and ignore completely the reward.
-  Then, each time we make a query we simply sample uniformly a subset of points in the unlabeled dataset $\mathcal{D}$ that we are given and query the pair with the highest uncertainty as measured by the bonus. Unlike the previous problem, we assume that for each pair points we have two actions $\{-1, 1 \}$ indicating the level of similarity which is the way in which we obtain feedback.
-  Although we use the bandits notation that we were using above it is important to emphasize that $r$ no longer represents a reward but rather labels for the similarity of the points themselves. Algorithms \ref{algo:active-neuralucb} and \ref{algo:active-linucb} describe this idea formally.
-
+  Despite the differences with online similarity learning, for the active version of the problem we modify the above algorithms only slightly.
+  The idea is to use the optimism bonus as a measure of uncertainty and ignore completely the reward.
+  Using this framework, each time we have to make a query we can simply sample uniformly a subset of points in the unlabeled dataset $\mathcal{D}$  and then we reveal the label of the pair with the highest uncertainty as measured by the bonus.
+  Although we use the bandits notation that we were using above, it is important to emphasize that $r$ no longer represents a reward but rather the labels for the similarity of the points themselves.
+  Algorithms \ref{algo:active-neuralucb} and \ref{algo:active-linucb} describe these processes formally.
+  In Algorithm \ref{algo:active-neuralucb} the most important change is line \ref{change:active-neuralucb} and in algorithm
+  \ref{algo:active-linucb} the most important change is line \ref{change:active-linucb}.
   \begin{algorithm}
   \label{algo:active-neuralucb}
   \setstretch{1.2}
     \SetKwInOut{Input}{Input}
-    \underline{OnSim-LinUCB} $(a,b)$\;
-    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    \Input{Queries $T$, exploration parameter $\alpha$, $\tau_r$ frequency of resets, $\tau_T$ frequency of training, $E$ epochs for training, $b_s$ batch size for training, $\epsilon$ learning rate.}
     $A \gets I_{p}$\;
     \For{$t \in [T]$}{
-      Observe $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R^n}$\;
+      Sample $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R}^n$ from dataset $D$\;
       \For{$k \in [K]$}{
-        $p_{t,k} \gets \phi(x,y) + \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
+        $p_{t,k} \gets \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
+        \label{change:active-neuralucb}
       }
       Choose pair $k_t = \text{argmax}_kp_{t,k}$ with ties broken arbitrarily\;
-      Observe payoff $ r_t \in \{-1,1 \}$\;
+      Query label $ r_t \in \{-1,1\}$\;
       \If{$t \mod \tau_r = 0$ }{
-        $\theta \gets \text{Train}()$\;
+        $\theta \gets \text{Train}(\epsilon,E, \{(x_i^{k_i}, y_i^{k_i}, r_i)\}_{i=1}^t,b_s)$\;
       }
       \If{$t \mod \tau_T = 0$ }{
         $A \gets I_p$
       }
       $A \gets A + \nabla_\theta \phi(x_t^k, y_t^k)(\nabla_\theta\phi(x_t^k,y_t^k))^\top$\;
     }
-    \caption{OnSim-nueralucb}
+    \caption{Active-NeuralUCB}
   \end{algorithm}
 
 
@@ -251,11 +248,12 @@ We propose these changes because we believe they are more sensible for our parti
       Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
       \For{$k \in [K]$}{
         $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
+        \label{change:active-linucb}
       }
-      Choose action $a_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.
-      Observe payoff $ r_t \in \{-1,1 \}$
+      Choose action $a_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.\;
+      Observe payoff $ r_t \in \{-1,1 \}$\;
       $A \gets A + z_{t,a_t}z_{t,a_t}^\top$\;
-      $b \gets z_{t,a_t}r_t$;\
+      $b \gets z_{t,a_t}r_t$\;
     }
     \caption{OnSim-LinUCB}
 \end{algorithm}
