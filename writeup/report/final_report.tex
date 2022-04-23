@@ -127,7 +127,7 @@ Attending to this fact, one can see that Algorithm \ref{algo:onsim-linucb} is al
         $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
       }
       Choose action $a_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.
-      Observe payoff $ r_t \in \{0,1 \}$
+      Observe payoff $ r_t \in \{-1,1 \}$
       $A \gets A + z_{t,a_t}z_{t,a_t}^\top$\;
       $b \gets z_{t,a_t}r_t$;\
     }
@@ -136,7 +136,132 @@ Attending to this fact, one can see that Algorithm \ref{algo:onsim-linucb} is al
 
 \subsubsection{OnSim-NeuralUCB}
 Unsurprisingly, the expressive power of the above framework is quite limited.
-This limitation comes from the fact that
+The limitation comes from the fact that Algorithm \ref{algo:onsim-linucb} essentially assumes that similarity is the result
+of a dot prouct in which both points are independently mapped to a new representation via a linear transformation. This will obviously not be true for many datasets.
+To overcome these limitations we adapt NeuralUCB \cite{neuralucb} to our circumstances.
+
+Formally, we assume that
+\[ \phi(x,y) = \cos\left(f(x;\mathbf{\theta}), f(y;\mathbf{\theta})\right) = \frac{\langle f(x;\mathbf{\theta}), f(y;\mathbf{\theta}) \rangle}{||f(x;\mathbf{\theta})||_2 ||f(y;\mathbf{\theta})||_2}\]
+Here $f: \mathbb{R}^n \to \mathbb{R}^m$ is a simple neural network of the form
+\[ f(x; \theta) = b_L + W_{L} \sigma\left(b_{L-1} +  W_{L-1} \sigma\left( \dots \sigma\left(b_1 + W_1 x\right)\right) \right)\]
+for some $L \in \mathbb{N}_{\geq 2}$, $W_1 \in \mathbb{R}^{d \times n}$, $W_{L} \in \mathbb{R}^{m \times d}$, $W_{l} \in \mathbb{R}^{d\times d}$ if $l \in [2, L-1]$, $b_L \in \mathbb{R}^m$, $b_l \in \mathbb{R}^d$ for $l \neq L$, and where $\sigma(x) = \max\{0, x\}$ applied component wise. We use $\theta$ to denote the flattened vector of $(W_L, b_L, \dots, W_1, b_1)$.
+Using this notation OnSim-NeuralUCB is described below in Algorithm \ref{algo:onsim-neuralucb}. We use $p$ to denote the total number of trainable parameters in the neural network.
+
+\begin{algorithm}
+  \label{algo:onsim-neuralucb}
+  \setstretch{1.2}
+    \SetKwInOut{Input}{Input}
+    \underline{OnSim-LinUCB} $(a,b)$\;
+    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    $A \gets I_{p}$\;
+    \For{$t \in [T]$}{
+      Observe $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R^n}$\;
+      \For{$k \in [K]$}{
+        $p_{t,k} \gets \phi(x,y) + \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
+      }
+      Choose pair $k_t = \text{argmax}_kp_{t,k}$ with ties broken arbitrarily\;
+      Observe payoff $ r_t \in \{-1,1 \}$\;
+      \If{$t \mod \tau_r = 0$ }{
+        $\theta \gets \text{Train}()$\;
+      }
+      \If{$t \mod \tau_T = 0$ }{
+        $A \gets I_p$
+      }
+      $A \gets A + \nabla_\theta \phi(x_t^k, y_t^k)(\nabla_\theta\phi(x_t^k,y_t^k))^\top$\;
+    }
+    \caption{OnSim-nueralucb}
+  \end{algorithm}
+
+Intuitively, this algorithm acts optimally with the current set of parameters that it is given and every so often it stops back to train the network. In Algorithm \ref{algo:train} we simply describe the normal process for training a classifier with mean squared error loss and assume that a normal gradient based algorithm is used.
+In the description we use Stochastic Gradient Descent as done in \cite{neuralucb} but we believe that despite lack of theoretical justification, more modern optimization strategies such as Adam \cite{adam} do a better job in practice.
+
+Although our algorithm is very similar to that proposed in $\cite{neuralucb}$ it differs in some key aspects.
+First, and perhaps most importantly, we adopt a very different architecture from that proposed in the original paper.
+In it, the authors assume that the layers of the neural network have no bias, assume a particular initialization scheme, don't use a cosine similarity function at the end of the neural network, nor do they implement a siamese network as we do.
+Second, we restart $A$ throughout training. Third, we use a constant exploration parameter throughout the duration of the algorithm.
+
+We propose these changes because we believe they are more sensible for our particular application (and do provide better empirical performance) but they destroy the theoretical guarantees provided by original paper in which they were used, alongside arguments to the  neural tangent kernel matrix \cite{neuraltangentkernel} to provide a $\tilde{O}(\sqrt{T})$, bound on the regret of algorithm.
+
+  \begin{algorithm}
+  \label{algo:train}
+  \setstretch{1.2}
+    \SetKwInOut{Input}{Input}
+    \underline{Train} $(a,b)$\;
+    \Input{Rounds $T$ and exploration parameter $\alpha$}
+
+    optimizer $\gets$ SGD($\epsilon, \theta$)\;
+    \For{$j = 1, \dots, E$}{
+      $\mathcal{D} \gets \{(x_1^{k_1}, y_1^{k_1}, r_1), \dots, (x_t^{k_t}, y_t^{k_t}, r_t)$ \;
+      \While{$\mathcal{D}$ is not empty}{
+        Sample minibatch $M$ of training examples\;
+        $l = \frac{1}{M}\sum_{(x_i^{k_{i}}, y_i^{k_i}, r_i) \in M} (\phi(x_i^{k_{i}}, y_i^{k_i}) - r_i)^2$\;
+        $\theta \gets$ update using optimizer with loss $l$\;
+
+        Remove $M$ from $\mathcal{D}$\;
+      }
+    }
+    \caption{Train}
+  \end{algorithm}
+
+  \subsection{Active Similarity Learning}
+  Despite the difference we propose an optimism inspired approach to active learning which modifies the previous algorithms only slightly.
+
+  The general idea is that we use the optimism bonus as a measure of uncertainty and ignore completely the reward.
+  Then, each time we make a query we simply sample uniformly a subset of points in the unlabeled dataset $\mathcal{D}$ that we are given and query the pair with the highest uncertainty as measured by the bonus. Unlike the previous problem, we assume that for each pair points we have two actions $\{-1, 1 \}$ indicating the level of similarity which is the way in which we obtain feedback.
+  Although we use the bandits notation that we were using above it is important to emphasize that $r$ no longer represents a reward but rather labels for the similarity of the points themselves. Algorithms \ref{algo:active-neuralucb} and \ref{algo:active-linucb} describe this idea formally.
+
+  \begin{algorithm}
+  \label{algo:active-neuralucb}
+  \setstretch{1.2}
+    \SetKwInOut{Input}{Input}
+    \underline{OnSim-LinUCB} $(a,b)$\;
+    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    $A \gets I_{p}$\;
+    \For{$t \in [T]$}{
+      Observe $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R^n}$\;
+      \For{$k \in [K]$}{
+        $p_{t,k} \gets \phi(x,y) + \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
+      }
+      Choose pair $k_t = \text{argmax}_kp_{t,k}$ with ties broken arbitrarily\;
+      Observe payoff $ r_t \in \{-1,1 \}$\;
+      \If{$t \mod \tau_r = 0$ }{
+        $\theta \gets \text{Train}()$\;
+      }
+      \If{$t \mod \tau_T = 0$ }{
+        $A \gets I_p$
+      }
+      $A \gets A + \nabla_\theta \phi(x_t^k, y_t^k)(\nabla_\theta\phi(x_t^k,y_t^k))^\top$\;
+    }
+    \caption{OnSim-nueralucb}
+  \end{algorithm}
+
+
+\begin{algorithm}
+  \label{algo:active-linucb}
+  \setstretch{1.2}
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+    \underline{OnSim-LinUCB} $(a,b)$\;
+    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    $A \gets I_{n^2}$\;
+    $b \gets 0_{n^2}$\;
+    \For{$t \in [T]$}{
+      $\theta_t \gets A^{-1}b$
+      Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
+      Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
+      \For{$k \in [K]$}{
+        $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
+      }
+      Choose action $a_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.
+      Observe payoff $ r_t \in \{-1,1 \}$
+      $A \gets A + z_{t,a_t}z_{t,a_t}^\top$\;
+      $b \gets z_{t,a_t}r_t$;\
+    }
+    \caption{OnSim-LinUCB}
+\end{algorithm}
+
+
+
 
 
 \section{Experiments}
