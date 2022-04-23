@@ -6,13 +6,12 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from scipy.stats import norm
 
 from metric_bandits.constants.paths import FIGURES_PATH
 
 # make matplotlib pretty
-plt.style.use("ggplot")
-font = {"size": 9}
-plt.rc("font", **font)
+
 
 colors = [
     "b",
@@ -36,7 +35,16 @@ colors = [
 ]
 
 
-def plot_regret(regrets, title="", name=""):
+def make_plots_pretty():
+    """
+    Sets the standard plotting parameters
+    """
+    plt.style.use("ggplot")
+    font = {"size": 11}
+    plt.rc("font", **font)
+
+
+def plot_regret(regrets, folder, title="", name=""):
     """
     Plots the cumulative regret and saves it in the figures directory.
     Assumes that regrets is a dictionary with they keys being the names
@@ -55,10 +63,54 @@ def plot_regret(regrets, title="", name=""):
     ax.set_xlabel("Round")
     ax.set_ylabel("Cumulative Regret")
     ax.legend()
-    fig.savefig(os.path.join(FIGURES_PATH, f"{name}_regret.png"), dpi=300)
+    fig.savefig(os.path.join(FIGURES_PATH, folder, f"{name}_regret.png"), dpi=300)
 
 
-def plot_embeddings(embeddings, labels, title="", name=""):
+def plot_ci(
+    runs,
+    folder,
+    x_label,
+    y_label,
+    title="",
+    name="",
+    ci=0.95,
+    figsize=(10, 10),
+    x_axis=None,
+):
+    """
+    Makes a plot of the lines with confidence intervals.
+
+    Assumes that runs is a dictionary with they keys being the names of the runs
+    and the values being a list of lists of the values with the same length. You can pass an $x_axis$
+    value to change the values displayed on the x axis.
+    """
+    make_plots_pretty()
+    fig, ax = plt.subplots(figsize=figsize)
+
+    for rname, run in runs.items():
+        run = np.array(run)
+        run = run + np.random.normal(0, 0.01, run.shape)
+
+        # get the confidence interval
+        mean, std = np.mean(run, axis=0), np.std(run, axis=0)
+        conf_int = norm.interval(ci, loc=mean, scale=std)
+
+        # plot the confidence interval
+        if x_axis is None:
+            x_axis = np.arange(len(mean))
+        ax.plot(x_axis, mean, label=rname)
+        ax.fill_between(x_axis, conf_int[0], conf_int[1], alpha=0.2)
+
+    ax.set_title(title)
+    ax.set_xlabel("Round")
+    ax.set_ylabel(y_label)
+    ax.legend()
+    if not os.path.exists(os.path.join(FIGURES_PATH, folder)):
+        os.makedirs(os.path.join(FIGURES_PATH, folder))
+    fig.savefig(os.path.join(FIGURES_PATH, folder, f"{name}_ci.png"), dpi=300)
+
+
+def plot_embeddings(embeddings, labels, folder, title="", name=""):
     """
     Plots the embeddings and saves it in the figures directory.
     Embeddings have shape [num_embeddings, embedding_dim]

@@ -16,24 +16,24 @@ pca_dims = 25
 input_dim = pca_dims
 depth = 3
 hidden_dim = 25
-out_dim = 5
+out_dim = 6
 dropout = 0.3
 normalize = True
 
 
 # Constants for the environment
-T = 3000
-batch_size = 3
+T = 10000
+batch_size = 4
 persistence = 2
-eval_freq = 100
+eval_freq = 2000
 
 # Constats for UCB
 reg = 0.01
 step_size = 0.01
-num_steps = 10
-train_freq = 50
+num_steps = 2
+train_freq = 150
 explore_param = 0.1
-eval_freq = 500
+
 
 # set up the enviromenent and model
 eval_metrics = []

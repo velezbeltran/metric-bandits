@@ -2,17 +2,29 @@
 Contains the code for creating an environment for an abstract environment
 for exploration
 """
+from collections import defaultdict
+
+import torch as torch
 from tqdm import tqdm
 
-from metric_bandits.utils.eval import eval_knn
+from metric_bandits.utils.eval import eval_knn, eval_linear
 
 
 class BaseEnv:
     """
     Class for creating an environment for exploration
+
+    A subclass should initialize self.X_train and self.Y_train
+    as a numpy array format.
+
+    Parameters:
+    -----------
+    to_eval: list
+        list of strings with the names of criteria to evaluate e.g
+        ['knn','linear', 'embedding']
     """
 
-    def __init__(self, data, algo, T, eval_freq=1000):
+    def __init__(self, data, algo, T, eval_freq=1000, to_eval=[]):
         """
         Initializes the environment
         """
@@ -22,15 +34,19 @@ class BaseEnv:
         self.t = 0  # current round
         self.mode = "train"  # mode of the environment (train/test)
         self.eval_freq = eval_freq  # How of to call self.eval
+        self.to_eval = to_eval  # What to evaluate
 
         # Nice way of of storing the data
+        # should be initialized for evaluation as standard
         self.X_train, self.Y_train = None, None
         self.X_test, self.Y_test = None, None
         self.nice_data_available = False
 
         self.cum_regrets = [0]  # keeps track of the regret per round
         self.rewards = []  # keeps track of the rewards per round
-        self.eval_metrics = []  # keeps track of the evaluation metrics per round
+        self.eval_metrics = defaultdict(
+            list
+        )  # keeps track of the evaluation metrics per round
 
     def update(self, r):
         """
@@ -62,28 +78,69 @@ class BaseEnv:
         Trains the algorithm
         """
         self.mode = "train"
-        for _ in (pbar := tqdm(range(self.T))):
+        pbar = tqdm(total=self.T)
+        for _ in range(self.T):
             actions = self.next_actions()
             action = self.algo.choose_action(actions)
             r = self.step(action)
             self.algo.update(r)
             self.update(r)
+
             # print the regret nicely
             pbar.set_description(f"Regret/time: {self.cum_regrets[-1]/self.t:.2f}")
+            pbar.update(1)
+
             if (self.t + 1) % self.eval_freq == 0:
                 self.eval()
 
     def eval(self):
-        eval_metric = {}
-        print("Evaluating...")
-        if hasattr(self.algo, "metric") and self.nice_data_available:
-            metric = self.algo.metric
-            acc = eval_knn(self.X_train, self.Y_train, self.X_test, self.Y_test, metric)
-            eval_metric["knn acc"] = acc
+        """
+        Evaluates the algorithm by looking at the quality of the embeddings
+        and of a KNN predictor. The results are stored in `self.eval_metrics`.
+        """
 
-        for k, v in eval_metric.items():
-            print(f"{k}: {v}")
-        self.eval_metrics.append(eval_metric)
+        # if the algorithm has a metric use it to test KNN
+        if not self.nice_data_available:
+            raise Exception("No nice data available so can't do evals")
+
+        for eval_func_name in self.to_eval:
+            getattr(self, "eval_" + eval_func_name)()
+
+        for k, v in self.eval_metrics.items():
+            if k != "embedding":
+                print(f"{k}: {v[-1]:.4f}")
+
+    def eval_knn(self):
+        if not hasattr(self.algo, "metric"):
+            raise Exception("Algorithm does not have a metric so can't evaluate knn")
+
+        metric = self.algo.metric
+        acc = eval_knn(self.X_train, self.Y_train, self.X_test, self.Y_test, metric)
+        self.eval_metrics["knn_acc"].append(acc)
+
+    def eval_linear(self):
+        if not hasattr(self.algo, "embed"):
+            raise Exception(
+                "Algorithm does not have embedding so can't evaluate linear predictor"
+            )
+        embed = self.algo.embed
+        X_train = embed(torch.tensor(self.X_train).to(self.device).float())
+        X_train = X_train.detach().cpu().numpy()
+        X_test = embed(torch.tensor(self.X_test).to(self.device).float())
+        X_test = X_test.detach().cpu().numpy()
+        acc = eval_linear(X_train, self.Y_train, X_test, self.Y_test)
+        # save the embedding
+        self.eval_metrics["linear_acc"].append(acc)
+
+    def eval_embedding(self):
+        if not hasattr(self.algo, "embed"):
+            raise Exception(
+                "Algorithm does not have embedding so can't evaluate embedding"
+            )
+        embed = self.algo.embed
+        X_tensor = torch.tensor(self.X_test).to(self.device, dtype=torch.float)
+        X_embed = embed(X_tensor).detach().cpu().numpy()
+        self.eval_metrics["embedding"].append((X_embed, self.Y_test))
 
     @property
     def mode(self):

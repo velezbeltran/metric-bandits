@@ -23,8 +23,19 @@ class SiameseNet(BaseNN):
     where `r` is going to be  f(x).T f(y)* s if f$is the neural network.
     """
 
-    def __init__(self, input_dim, hidden_dim, out_dim, depth, dropout, normalize=False):
-        super(SiameseNet, self).__init__(input_dim, hidden_dim, out_dim, depth, dropout)
+    def __init__(
+        self,
+        input_dim,
+        hidden_dim,
+        out_dim,
+        depth,
+        dropout,
+        normalize=False,
+        batch_norm=False,
+    ):
+        super(SiameseNet, self).__init__(
+            input_dim, hidden_dim, out_dim, depth, dropout, batch_norm
+        )
         self.normalize = normalize
 
     def forward(self, x):
@@ -36,6 +47,7 @@ class SiameseNet(BaseNN):
         x: torch.Tensor
             Shape (batch_size, 2 * context_dim + 1)
         """
+        x = x.to(self.device)
         x = make_batch(x)
         v1 = x[:, : self.context_dim]
         v2 = x[:, self.context_dim : 2 * self.context_dim]
@@ -50,13 +62,16 @@ class SiameseNet(BaseNN):
         x: torch.Tensor
             Shape (batch_size, context_dim)
         """
+        x = x.to(self.device)
         x = make_batch(x)
         for i in range(self.depth):
             x = self.layers[i](x)
+            if len(self.bn_layers) > 0:
+                x = self.bn_layers[i](x)
+
             x = self.activation(x)
             x = F.dropout(x, p=self.dropout)
         x = self.layers[-1](x)
-
         if self.normalize:
             x = x / torch.norm(x, dim=1, keepdim=True)
 

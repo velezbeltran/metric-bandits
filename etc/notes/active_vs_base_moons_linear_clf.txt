@@ -1,0 +1,25 @@
+To produce that plot the parameters used where
+
+# Constants for the neural network
+input_dim = 2
+depth = 3
+hidden_dim = 25
+out_dim = 2
+dropout = 0.3
+normalize = False
+
+
+# Constants for the environment
+T = 1000
+batch_size = 5
+persistence = 2
+eval_freq = 10
+to_eval = ["linear", "embedding"]
+
+# Constants for UCB
+step_size = 0.001
+num_steps = 1
+train_freq = 10
+active = True
+
+The average was taken over 4 runs.
