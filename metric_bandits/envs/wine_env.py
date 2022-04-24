@@ -11,7 +11,7 @@ from metric_bandits.constants.constants import SEED
 import numpy as np
 
 class WineEnv(BaseEnv):
-    def __init__(self, algo, T, batch_size):
+    def __init__(self, algo, T, batch_size, context="linear"):
         """
         Initializes the environment
 
@@ -25,6 +25,7 @@ class WineEnv(BaseEnv):
         self.idx = {}
         self.init_data()
         self.rewards = []
+        self.context_type = context
 
     def next_actions(self):
         """
@@ -45,20 +46,36 @@ class WineEnv(BaseEnv):
             for data_y, label_y in batch:
                 if not np.array_equal(data_x, data_y):
                     for prop_distance in [+1,-1]:
-                        context_partial = np.concatenate(
-                            [data_x, 
-                            data_y]
-                            )
-                        context_full = np.concatenate([
-                            context_partial,
-                            [prop_distance]]
-                            )
+                        context_full = self.make_context(self, data_x, data_y, prop_distance, _type=self.context_type)
                         id = str(uuid.uuid4())
                         self.current_actions[id] = context_full
                         self.real_distances[id] = 1 if label_x == label_y else -1
                         self.proposed_distances[id] = prop_distance
         
         return self.current_actions
+
+    def make_context(self, data_x, data_y, prop_distance, _type="linear"):
+        if _type == "linear":
+            context_partial = np.concatenate(
+                            [data_x, 
+                            data_y]
+                            )
+            context_full = np.concatenate([
+                            context_partial,
+                            [prop_distance]]
+                            )
+            return context_full
+
+        if _type == "quadratic":
+            context_partial = [x*y for x,y in list(zip(data_x,data_y))]
+            
+            context_full = np.concatenate([
+                            context_partial,
+                            [prop_distance]]
+                            )
+            return context_full
+
+
 
     def step(self, action):
         """
