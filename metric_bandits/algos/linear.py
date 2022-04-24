@@ -2,9 +2,11 @@
 Implements the epsilon greedy strategy for the linear case.
 """
 
+from turtle import pos
 from metric_bandits.algos.base import BaseAlgo
 import random
 import torch
+from collections import defaultdict
 
 import numpy as np
 from metric_bandits.utils.math import square_matrix_norm, sherman_morrison
@@ -79,6 +81,19 @@ class Linear(BaseAlgo):
         self.A_inv = sherman_morrison(self.A_inv, latest_context.unsqueeze(-1))
         self.b = self.b + torch.mul(latest_context, reward)
         self.t += 1
+
+    def estimate(self, actions):
+        """
+        Given an array of (x,y,a) contexts for a select x and y, produces  +1 or -1
+        representing a similarity estimate of the current model
+        """
+        self.vals = {}
+        for action in actions:
+            val = self.theta @ actions[action]
+            self.vals[action] = val
+
+        return max(self.vals, key=self.vals.get)[-1]
+
 
     def reset(self):
         """
