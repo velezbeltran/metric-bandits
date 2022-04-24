@@ -253,12 +253,36 @@ We propose these changes because we believe they are more sensible for our parti
     }
     \caption{Active-LinUCB}
 \end{algorithm}
+\section{Empirical Evaluation}
+Below we describe the set of experiments that we performed.
+We test separately NeuralUCB and LinUCB based algorithms as we logically expect them to perform
+very differently due to the limitations of a linear approach.
 
+\subsection{NeuralUCB}
 
+\paragraph{Dataset}
+Although we tested on various datasets including MNIST, CIFAR-10 and crescent moons
+we found that the algorithm was impractical to use on the first two due to the expensive computation
+of the matrix operation.
+To reduce the dimension we had to apply PCA, however because this process implicitely leads to a better representation
+useful for our scenarios, we opted not to include the results here an only focus on the performance of crescent moons.
+However, these experiments can be found on the associated github repo.
 
+\paragraph{Neural Network}
+For our experiments we used a simple 3 layer neural network with 25 hidden units in each layer and an output dimension of 2.
+In addition to the description of the algorithm provided above, we also added a dropout layer after each regular layer of the neural network with
+$p =0.3$. We found this to be an important in practice so that the neural network would not overfit in the low data situation that it was operating in.
+\paragraph{Optimizer}
+We used Adam with learning rate $0.001$ and the defaults suggested by the original paper \cite{adam}.
+We also attempted to use other optimization like SGD or SGD with momentum but overall found the performance of Adam to be
+significantly better.
 
+\subsubsection{Experiment 1: Effectiveness of a linear classifier on learned features}
+A simple way of deciding whether our active approach provides any benefits is by training a Linear-SVM
+on the features provided by the neural network and observe the difference in performance per iteration of
+algorithm which uses the active approach and an algorithm that trains as often but chooses the queries to make
+at random. The results of this experiment can be found below
 
-\section{Experiments}
 
 \section{Conclusion}
 
