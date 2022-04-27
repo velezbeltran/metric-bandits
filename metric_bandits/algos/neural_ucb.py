@@ -29,6 +29,7 @@ class NeuralUCB(BaseAlgo):
         active=False,
         verbose=True,
         reset_freq=None,
+        optimizer=None,
     ):
         """
         If active is true, the model forgets completely about regret and just takes actions
@@ -45,7 +46,7 @@ class NeuralUCB(BaseAlgo):
 
         # Set up model and optimizer
         self.model = model.to(self.device)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=step_size)
+        self.optimizer = optimizer(lr=step_size, params=self.model.parameters())
 
         # state of the algorithm
         self.Z_inv = None

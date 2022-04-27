@@ -102,12 +102,12 @@ def plot_ci(
         ax.fill_between(x_axis, conf_int[0], conf_int[1], alpha=0.2)
 
     ax.set_title(title)
-    ax.set_xlabel("Round")
+    ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.legend()
     if not os.path.exists(os.path.join(FIGURES_PATH, folder)):
         os.makedirs(os.path.join(FIGURES_PATH, folder))
-    fig.savefig(os.path.join(FIGURES_PATH, folder, f"{name}_ci.png"), dpi=300)
+    fig.savefig(os.path.join(FIGURES_PATH, folder, f"{name}-ci.png"), dpi=300)
 
 
 def plot_embeddings(embeddings, labels, folder, title="", name=""):
