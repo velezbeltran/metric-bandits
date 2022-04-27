@@ -16,8 +16,11 @@
 \usepackage{bbm}
 \usepackage[linesnumbered,ruled,commentsnumbered]{algorithm2e}
 \usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
 
-
+\graphicspath{{./figures/active/neural/}}
 \IncMargin{1.5em}
 
 \title{Active Heirarchical Metric Learning}
@@ -35,6 +38,7 @@
   New York City, NY 10027 \\
   \texttt{kj2473@columbia.edu}\\
 }
+
 
 \begin{document}
 
@@ -97,6 +101,7 @@ However, in reality they can be thought of as 2 different algorithms (a neural a
 We refer to our algorithms as OnSim-LinUCB, ActSim-LinUCB,OnSim-NeuralUCB, ActSim-NeuralUCB, depeding on whether they are based on LinUCB or NeuralUCB and on whether they attempt to solve the active or online formulation of our problem.
 We provide the four versions below with their slightly different modifications for completeness.
 
+
 \subsection{Online similarity learning}
 For our problem of online similarity learning we adopt the frameworks of  LinUCB  as described in \cite{linucb} and  NeuralUCB as described in \cite{neuralucb}. We explain this in detail below.
 
@@ -136,7 +141,7 @@ The limitation comes from the fact that Algorithm \ref{algo:onsim-linucb} essent
 of a dot prouct in which both points are independently mapped to a new representation via a linear transformation. This will obviously not be true for many datasets.
 To overcome these limitations we adapt NeuralUCB \cite{neuralucb} to our circumstances.
 
-Formally, we assume that
+Formally, we assume that\footnote{It is also possible to assume that we don't normalize the last inner product, we refer to this verision and unormalized NeuralUCB. We provide some comparisons of this verison also below.}
 \[ \phi(x,y) = \cos\left(f(x;\mathbf{\theta}), f(y;\mathbf{\theta})\right) = \frac{\langle f(x;\mathbf{\theta}), f(y;\mathbf{\theta}) \rangle}{||f(x;\mathbf{\theta})||_2 ||f(y;\mathbf{\theta})||_2}\]
 Here $f: \mathbb{R}^n \to \mathbb{R}^m$ is a simple neural network of the form
 \[ f(x; \theta) = b_L + W_{L} \sigma\left(b_{L-1} +  W_{L-1} \sigma\left( \dots \sigma\left(b_1 + W_1 x\right)\right) \right)\]
@@ -272,17 +277,53 @@ However, these experiments can be found on the associated github repo.
 For our experiments we used a simple 3 layer neural network with 25 hidden units in each layer and an output dimension of 2.
 In addition to the description of the algorithm provided above, we also added a dropout layer after each regular layer of the neural network with
 $p =0.3$. We found this to be an important in practice so that the neural network would not overfit in the low data situation that it was operating in.
+
 \paragraph{Optimizer}
-We used Adam with learning rate $0.001$ and the defaults suggested by the original paper \cite{adam}.
-We also attempted to use other optimization like SGD or SGD with momentum but overall found the performance of Adam to be
+We attempted to use SGD, Adam, and SGD with momentum with various different hyper parameters.
+Generally, We found that Adam was the best performing optimizer followed by SGD with momentum.
+When appropiate we report the results for SGD with momentum and Adam and when non is mentioned we report the results for Adam.
+We found that the defaults for Adam in \cite{adam} worked well for our experiments.
+
+We used Adam with learning rate $0.001$ and the default hyper-parameters suggested by the original paper \cite{adam}.
+We also attempted to use other optimizations like SGD or SGD with momentum but overall found the performance of Adam to be
 significantly better.
+When appropiate we report additional results for comparison but we report the results for Adam when an optimizer is not mentioned.
 
 \subsubsection{Experiment 1: Effectiveness of a linear classifier on learned features}
-A simple way of deciding whether our active approach provides any benefits is by training a Linear-SVM
-on the features provided by the neural network and observe the difference in performance per iteration of
-algorithm which uses the active approach and an algorithm that trains as often but chooses the queries to make
-at random. The results of this experiment can be found below
+To determine the quality of our embeddings we used a linear classifier to classify the learned features and observe these values
+per iteration. We report the results both for SGD with momentum and Adam. Additionally, we also report the performance of NeuralUCB
+using the unormalized version of cosine similarity. All graphs contain the mean and a 95\% confidence interval
+computed over 10 runs of the algorithm. The results are shown in Figures (\ref{fig:svm-non-normalized-ci}) and (\ref{fig:svm-normalized-ci})
 
+% add figures
+\begin{figure}[!h]
+  \centering
+  \begin{minipage}{.55\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-SGD-non-normalized-ci}
+  \end{minipage}%
+  \begin{minipage}{.55\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-Adam-non-normalized-ci}
+  \end{minipage}
+  \caption{Performance SVM on non-normalzied learned features Adam vs SGD}
+  \label{fig:svm-non-normalized-ci}
+\end{figure}
+
+% add figures
+\begin{figure}[!h]
+  \centering
+  \begin{minipage}{.55\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-SGD-normalized-ci}
+  \end{minipage}%
+  \begin{minipage}{.55\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-Adam-normalized-ci}
+  \end{minipage}
+  \caption{Performance SVM on normalzied learned features Adam vs SGD}
+  \label{fig:svm-normalized-ci}
+\end{figure}
 
 \section{Conclusion}
 
