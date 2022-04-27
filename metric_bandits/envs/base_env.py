@@ -4,6 +4,7 @@ for exploration
 """
 from collections import defaultdict
 
+import numpy as np
 import torch as torch
 from tqdm import tqdm
 
@@ -41,6 +42,7 @@ class BaseEnv:
         self.X_train, self.Y_train = None, None
         self.X_test, self.Y_test = None, None
         self.nice_data_available = False
+        self.idx = {}
 
         self.cum_regrets = [0]  # keeps track of the regret per round
         self.rewards = []  # keeps track of the rewards per round
@@ -130,7 +132,7 @@ class BaseEnv:
         X_test = X_test.detach().cpu().numpy()
         acc = eval_linear(X_train, self.Y_train, X_test, self.Y_test)
         # save the embedding
-        self.eval_metrics["linear_acc"].append(acc)
+        self.eval_metrics["linear"].append(acc)
 
     def eval_embedding(self):
         if not hasattr(self.algo, "embed"):
@@ -141,6 +143,67 @@ class BaseEnv:
         X_tensor = torch.tensor(self.X_test).to(self.device, dtype=torch.float)
         X_embed = embed(X_tensor).detach().cpu().numpy()
         self.eval_metrics["embedding"].append((X_embed, self.Y_test))
+
+    def eval_l2_loss_embed(self):
+        if not hasattr(self.algo, "embed"):
+            raise Exception(
+                "Algorithm does not have embedding so can't evaluate l2 loss"
+            )
+
+        # get the true similarity
+        if not hasattr(self, "_similarity_labels"):
+            self._similarity_labels = np.zeros((len(self.Y_test), len(self.Y_test)))
+            for i in range(len(self.Y_test)):
+                for j in range(len(self.Y_test)):
+                    self._similarity_labels[i, j] = (
+                        int(self.Y_test[i] == self.Y_test[j]) * 2 - 1
+                    )
+
+        embed = self.algo.embed
+        X_tensor = torch.tensor(self.X_test).to(self.device, dtype=torch.float)
+        X_embed = embed(X_tensor).detach().cpu().numpy()
+
+        similarity = np.dot(X_embed, X_embed.T)
+        loss = np.square(similarity - self._similarity_labels)
+        loss = loss[np.triu_indices(len(self.Y_test), 1)]
+        loss = np.sum(loss) / ((len(self.Y_test) ** 2 - len(self.Y_test)) / 2)
+        self.eval_metrics["l2_loss_embed"].append(loss)
+
+    def eval_square_loss(self):
+        if not hasattr(self.algo, "estimate"):
+            raise Exception("Algorithm does not have a estimator function so can't evaluate square loss")
+        
+        if not hasattr(self, "make_context") or not hasattr(self, "context"):
+            raise Exception("Environment does not have a context function or variable so can't evaluate square loss")
+
+        estimate = self.algo.estimate
+
+        # choose the next batch of images to use for training
+        b_idxs = self.idx["test"]
+        batch = [self.data[i] for i in b_idxs]
+
+        # store stuff to interpret returned action
+        
+        self.real_label = []
+        self.pred_label = []
+
+        # produce the actions
+        for i in range(len(batch)):
+            for j in range(i + 1, len(batch)):
+                self.test_actions = {}
+                for a in self.possible_actions:
+                    imgx, labelx = batch[i]
+                    imgy, labely = batch[j]
+                    imgx, imgy = imgx.flatten(), imgy.flatten()
+                    context_partial = self.algo.make_context(imgx, imgy, a, self.context)
+                    self.test_actions[context_partial] = context_partial
+                self.real_label.append(2 * int(labelx == labely) - 1)
+                self.pred_label.append(self.algo.estimate(self.test_actions))
+
+        # evaluate empirical estimate:
+        matches = [1 if self.pred_label[i] == self.real_label[i] else 0 for i in range(len(a))]
+        acc = sum(matches)/len(matches)
+        self.eval_metrics["square_loss"].append(acc)
 
     @property
     def mode(self):
