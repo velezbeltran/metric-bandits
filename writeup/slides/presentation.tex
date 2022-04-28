@@ -1,18 +1,89 @@
 \documentclass{beamer}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{lipsum}
+\usepackage{amsmath}
+\usepackage{setspace}
+\usepackage{bbm}
+\usepackage[linesnumbered,ruled,commentsnumbered]{algorithm2e}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+
+
 %Information to be included in the title page:
+\usetheme{Boadilla}
 \usefonttheme[]{serif}
-\title{Sample title}
-\author{Anonymous}
-\institute{Overleaf}
-\date{2021}
+\title[Similarity Learning]{Active and Online Similarity Learning}
+\subtitle[]{An application of bandits to Similarity learning}
+\author[Ketan and Nicolas]{Ketan Jog and Nicolas Beltran}
+\institute[]{Columbia University}
+\date{May 2021}
 
 \begin{document}
 
-\frame{\titlepage}
+\begin{frame}
+    \titlepage
+\end{frame}
+
 
 \begin{frame}
-\frametitle{Sample frame title}
-This is some text in the first frame. This is some text in the first frame. This is some text in the first frame.
+\frametitle{Long Term Goal:}
+To reduce in a provable way online and active metric learning to a bandit problem (hopefully encoding hierarchical structure).
+\end{frame}
+
+% ----------------------------------------------------
+% General summary of accomplishments
+% ----------------------------------------------------
+\begin{frame}{}
+\frametitle{What we did:}
+Use bandit algorithms to solve the following problems:
+\begin{itemize}
+\item
+    Online learning of a similarity measure.
+\item
+    Active learning of a similiarity measure (i.e. by querying labels).
+\end{itemize}
+\vspace*{1cm}
+\begin{definition}
+Similarity Measure: A function $\phi: \mathbb{R}^{2n} \to \mathbb{R}$ that maps datapoints $x, y \in \mathbb{R}^{n}$ to a real number in $\mathbb{R}$
+according to how ``similar'' they are.
+\end{definition}
+\end{frame}
+
+
+% ----------------------------------------------------
+% Problem formulation
+% ----------------------------------------------------
+\begin{frame}{}
+    \frametitle{Problem: Online Similarity Learning}
+    At round $t$ the environment samples $K$ pairs of points $(x_{t,k}, y_{t,k}) \in \mathbb{R}^{2n}$.
+    We choose pair $k_t \in [K]$ and get reward $r_{t,k_{t}} \in \{1, -1\}$ based on whether they are similar.
+
+    We are trying to minimize:
+    \[ R_T = \mathbb{E}\left[\sum_{t =1}^T \phi(x_{t,k^\star_t}, y_{t,k^\star_t}) - \phi(x_{t,k_t}, y_{t,k_t})\right]\]
+    where $k_t^\star = \text{argmax}_{k\in [K]} \phi(x_{t,k}, y_{t,k})$
+\end{frame}
+
+\begin{frame}{}
+    \frametitle{Problem: Active Similarity Learning}
+    Learner has access to a dataset $D = \{x_i \in \mathbb{R}^n| i \in [N]\}$ of unlabeled points.
+    The learner can query $T$ pairs of points in this set $D$ to obtain a dataset $D_T = \{(x_t, y_t, r_t) ~|  ~t \in [T]\}$.
+    The learner mantains and estimate $\hat{\phi}_t \in \mathcal{F}$ of $\phi$, where $\mathcal{F}$ is its function class.
+    Denote the loss between an estimate $\hat{\phi}$ a $\phi$ as
+    \[ \mathcal{L}(\phi, \hat{\phi}) = \mathbb{E}_{(x, y) \sim \mathcal{D} \times \mathcal{D}}[(\hat{\phi}(x,y) - \phi(x, y))^2] \]
+    Goal is to find
+    \[\min_{\phi \in \mathcal{F}} \mathcal{L}(\hat{\phi}_T, \phi)\]
+
 \end{frame}
 
 \end{document}
