@@ -18,7 +18,8 @@ class LinUCB(BaseAlgo):
         self,
         matrix_tuning_parameter=1,
         explore_param=1,
-        active=False
+        active=False,
+        verbose=False
     ):
         # Tuning parameter, set  to 1 by default.
         self._lambda = matrix_tuning_parameter
@@ -68,12 +69,14 @@ class LinUCB(BaseAlgo):
         # Loop through all available action, context pairs
         for action in actions:
             self.ucb_estimate[action] = self.get_ucb_estimate(actions[action])
+            
         # return the key with the highest value
         self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
         self.contexts_played.append(actions[self.last_action])
         
         return self.last_action
 
+    
     def choose_action_active(self, actions):
 
         # At step 0, initialise all variables
@@ -102,7 +105,7 @@ class LinUCB(BaseAlgo):
             self.ucb_estimate[ctxt] += self.get_opt_estimate(actions[action])
             self.unique_contexts[ctxt].append(action)
 
-        # Choose to make a desicion on the pair with the highes opt value
+        # Choose to make a decision on the pair with the highes opt value
         self.last_context = max(self.ucb_estimate, key=self.ucb_estimate.get)
         # choose the action with the highest value
         ctxt_val = self.mean_estimate[self.last_context]
@@ -143,6 +146,14 @@ class LinUCB(BaseAlgo):
         self.A_inv = sherman_morrison(self.A_inv, latest_context.unsqueeze(-1))
         self.b = self.b + torch.mul(latest_context, reward)
         self.t += 1
+
+    def estimate(self, actions):
+        # Loop through all available action, context pairs
+        for action in actions:
+            self.ucb_estimate[action] = self.get_ucb_estimate(actions[action])
+        # return the predicted action label
+        return max(self.ucb_estimate, key=self.ucb_estimate.get)[-1]
+        
 
     def reset(self):
         """

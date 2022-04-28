@@ -3,6 +3,7 @@ Contains the code for creating an environment for an abstract environment
 for exploration
 """
 from collections import defaultdict
+import random
 
 import numpy as np
 import torch as torch
@@ -180,29 +181,37 @@ class BaseEnv:
 
         # choose the next batch of images to use for training
         b_idxs = self.idx["test"]
-        batch = [self.data[i] for i in b_idxs]
+        X, y = self.data
+        test_set = list(zip(X[b_idxs], y[b_idxs]))
+        random.shuffle(test_set)
+        bX, by = zip(*test_set)
+        # batch = [self.data[i] for i in b_idxs]
 
         # store stuff to interpret returned action
         
         self.real_label = []
         self.pred_label = []
-
+        
         # produce the actions
-        for i in range(len(batch)):
-            for j in range(i + 1, len(batch)):
+        for i in range(100):
+            for j in range(i + 1, 100):
                 self.test_actions = {}
                 for a in self.possible_actions:
-                    imgx, labelx = batch[i]
-                    imgy, labely = batch[j]
+                    imgx, labelx = bX[i], by[i]
+                    imgy, labely = bX[j], by[j]
                     imgx, imgy = imgx.flatten(), imgy.flatten()
-                    context_partial = self.algo.make_context(imgx, imgy, a, self.context)
+                    context_partial = self.make_context(imgx, imgy, a, self.context)
+                    
+                    context_partial = context_partial.float()
                     self.test_actions[context_partial] = context_partial
                 self.real_label.append(2 * int(labelx == labely) - 1)
                 self.pred_label.append(self.algo.estimate(self.test_actions))
+        # print("Produced Estimates")
 
         # evaluate empirical estimate:
-        matches = [1 if self.pred_label[i] == self.real_label[i] else 0 for i in range(len(a))]
+        matches = [1 if self.pred_label[i] == self.real_label[i] else 0 for i in range(len(self.pred_label))]
         acc = sum(matches)/len(matches)
+        # print(acc)
         self.eval_metrics["square_loss"].append(acc)
 
     @property

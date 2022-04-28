@@ -7,6 +7,8 @@ last dimension of action is the proposed distance.
 
 import uuid
 from collections import defaultdict
+import itertools
+
 
 import torch
 
@@ -16,7 +18,7 @@ from metric_bandits.envs.base_env import BaseEnv
 
 
 class MNISTEnv(BaseEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca_dims=None, context=None, eval_freq=1000, ):
+    def __init__(self, algo, T, batch_size, persistence, pca_dims=None, context=None, eval_freq=1000, to_eval=None):
         """
         Initializes the environment
 
@@ -27,7 +29,7 @@ class MNISTEnv(BaseEnv):
         # set seed
         data = MNIST if not pca_dims else make_pca_mnist(MNIST, pca_dims)
         # center and scale
-        super().__init__(data, algo, T, eval_freq)
+        super().__init__(data, algo, T, eval_freq, to_eval=to_eval)
         self.persistence = persistence
         self.batch_size = batch_size
         self.idx = {}
@@ -171,7 +173,7 @@ class MNISTNumDistEnv(MNISTEnv):
 
 
 class MNISTSimEnv(MNISTEnv):
-    def __init__(self, algo, T, batch_size, persistence, context=None, pca_dims=None, eval_freq=1000):
+    def __init__(self, algo, T, batch_size, persistence, context=None, pca_dims=None, eval_freq=1000, to_eval=[]):
         """
         Mnist environment
 
@@ -180,7 +182,7 @@ class MNISTSimEnv(MNISTEnv):
             persistence: how many rounds to keep the same dataset for
         """
         super().__init__(
-            algo, T, batch_size, persistence, pca_dims, context, eval_freq=eval_freq,
+            algo, T, batch_size, persistence, pca_dims, context, eval_freq=eval_freq, to_eval=to_eval
         )
         self.possible_actions = [-1, 1]
 
@@ -221,7 +223,7 @@ class MNISTSimEnv(MNISTEnv):
             context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
 
         elif context == "quadratic":
-            context_partial = torch.tensor([x*y for x,y in list(zip(imgx,imgy))])
+            context_partial = torch.tensor([i*j for i,j in list(itertools.product(imgx, imgy))])
             context_partial = torch.cat((context_partial, torch.tensor([a])))
         else:
             raise NotImplementedError
