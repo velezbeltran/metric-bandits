@@ -140,8 +140,8 @@ class NeuralUCB(BaseAlgo):
         self.model.zero_grad()
         val, _ = self.model(x)
         grad = torch.autograd.grad(val, self.model.parameters(), create_graph=False)
-        g = torch.cat([g.flatten() for g in grad])
-        return val, g.unsqueeze(-1)
+        g = torch.cat([g.flatten() for g in grad]).detach()
+        return val.item(), g.unsqueeze(-1)
 
     def optimist_reward(self, grad):
         grad = grad.detach()
