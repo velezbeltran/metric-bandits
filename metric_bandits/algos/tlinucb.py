@@ -78,9 +78,9 @@ class TLinUCB(BaseAlgo):
         items = list(actions.items())
         random.shuffle(items)
         for action, ctxt in items:
-            ctxt_str = str(ctxt[:, :-1])
-            ctxt = ctxt[:, :-1]
-            val = ctxt @ self.theta
+            ctxt_str = str(ctxt[:-1])
+            ctxt = ctxt[:-1]
+            val = self.theta.T @ ctxt
             opt = self.optimist_reward(ctxt)
             self.ucb_val_opts[ctxt_str].append((val, opt))
             self.ucb_estimate[ctxt_str] += opt
@@ -93,14 +93,14 @@ class TLinUCB(BaseAlgo):
         ctxt_val_opt = self.ucb_val_opts[self.last_context_str]
         argmax = get_argmax(ctxt_val_opt, lambda x: x[0])
         self.last_action = self.unique_contexts[self.last_context_str][argmax]
-        self.last_context = actions[self.last_action][:, :-1]
+        self.last_context = actions[self.last_action][:-1]
         return self.last_action
 
     def optimist_reward(self, context):
         """
         Returns the optimist reward for a given context.
         """
-        return self.explore_param * torch.sqrt(context @ self.Z_inv @ context.T)
+        return self.explore_param * torch.sqrt(context.T @ self.Z_inv @ context)
 
     def update(self, reward):
         """
@@ -109,8 +109,8 @@ class TLinUCB(BaseAlgo):
         self.rewards.append(reward)
 
         # update our confidence matrix
-        self.Z_inv = sherman_morrison(self.Z_inv, self.last_context.T)
-        self.b = self.b + self.last_context.T * reward
+        self.Z_inv = sherman_morrison(self.Z_inv, self.last_context)
+        self.b = self.b + self.last_context * reward
 
         # decide whether to train the model
         self.t += 1

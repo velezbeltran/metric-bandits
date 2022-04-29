@@ -18,16 +18,16 @@ reg = 1.0
 
 
 # Constants for the environment
-T = 4000
+T = 1000
 batch_size = 5
 persistence = 2
-eval_freq = 20
+eval_freq = 2
 to_eval = ["l2_loss_linear"]
 possible_actions = [1]
 
 # Constants for UCB
 active = True
-num_samples = 2
+num_samples = 100
 
 
 # constants for plotting
@@ -69,12 +69,12 @@ for i in range(num_samples):
         )
         env.reset()
         env.train()
-        eval_metrics[("l2_loss_linear")][explore_param].append(
+        eval_metrics[("l2_loss_linear")][display_name[explore_param]].append(
             env.eval_metrics["l2_loss_linear"]
         )
 
     current_l2_name = l2_name
-    l2_tuple = "l2_loss_embed"
+    l2_tuple = "l2_loss_linear"
 
     x_axis = (
         np.arange(len(eval_metrics[l2_tuple][display_name[explore_param]][0]))

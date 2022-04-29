@@ -11,7 +11,7 @@ import uuid
 import torch
 
 from metric_bandits.constants.data import TEST_NUM, TRAIN_NUM
-from metric_bandits.data.blobs import BLOBS
+from metric_bandits.data.blobs import BLOBS_BALANCED, BLOBS_UNBALANCED
 from metric_bandits.envs.base_env import BaseEnv
 
 
@@ -34,7 +34,7 @@ class BlobsEnv(BaseEnv):
             persistence: how many rounds to keep the same dataset for
         """
         # set seed
-        data = BLOBS
+        data = BLOBS_UNBALANCED
         # center and scale
         super().__init__(
             data=data, algo=algo, T=T, eval_freq=eval_freq, to_eval=to_eval
@@ -70,6 +70,9 @@ class BlobsEnv(BaseEnv):
         self.idx = {}
         self.idx["train"] = perm[:train_len]
         self.idx["test"] = perm[train_len:]
+
+        X, Y = BLOBS_BALANCED
+        perm = torch.randperm(len(X))
 
         # create pretty version (i.e compatible with sklarn)
         self.X_train = X[self.idx["train"]].numpy()[:TRAIN_NUM]
@@ -170,7 +173,7 @@ class BlobsSimEnv(BlobsEnv):
                 [i * j for i, j in list(itertools.product(imgx, imgy))]
             )
             context_partial = torch.cat((context_partial, torch.tensor([a]))).unsqueeze(
-                0
+                1
             )
         else:
             raise NotImplementedError
@@ -181,7 +184,7 @@ class BlobsSimEnv(BlobsEnv):
         """
         Returns the reward for the action taken
         """
-        prop_sim = self.current_actions[action][0][-1]
+        prop_sim = self.current_actions[action][-1]
         real_sim = self.real_label[action]
         reward = prop_sim * real_sim
         self.t += 1

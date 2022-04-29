@@ -181,13 +181,14 @@ class BaseEnv:
 
         X_left = X_test
         X_right = X_test[perm]
+
         Y_left = torch.tensor(self.Y_test).to(self.device)
         Y_right = torch.tensor(self.Y_test).to(self.device)[perm]
         Y_true = 2 * (Y_left == Y_right) - 1
 
         # get features
         feats = cross_terms(X_left, X_right)
-        pred = feats @ self.algo.theta
+        pred = (feats @ self.algo.theta).flatten()
         loss = torch.mean((pred - Y_true) ** 2)
         self.eval_metrics["l2_loss_linear"].append(loss.item())
 
