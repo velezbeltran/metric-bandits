@@ -5,20 +5,30 @@ last dimension of action is the proposed distance.
 """
 
 
+import itertools
 import uuid
 from collections import defaultdict
-import itertools
-
 
 import torch
 
 from metric_bandits.algos.linucb import LinUCB
+from metric_bandits.constants.data import TEST_NUM, TRAIN_NUM
 from metric_bandits.data.mnist import MNIST, make_pca_mnist
 from metric_bandits.envs.base_env import BaseEnv
 
 
 class MNISTEnv(BaseEnv):
-    def __init__(self, algo, T, batch_size, persistence, pca_dims=None, context=None, eval_freq=1000, to_eval=None):
+    def __init__(
+        self,
+        algo,
+        T,
+        batch_size,
+        persistence,
+        pca_dims=None,
+        context=None,
+        eval_freq=1000,
+        to_eval=None,
+    ):
         """
         Initializes the environment
 
@@ -37,9 +47,8 @@ class MNISTEnv(BaseEnv):
         self.rewards = []
         self.granularity = [i for i in range(10)]
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.context = "linear" if context == None else context
+        self.context = "linear" if context is None else context
         print(self.context)
-        
 
         # If algorithm is LinUCB, change settings:
         if isinstance(self.algo, LinUCB):
@@ -73,11 +82,12 @@ class MNISTEnv(BaseEnv):
                 X[mode].append(self.data[self.idx[mode][i]][0])
                 Y[mode].append(self.data[self.idx[mode][i]][1])
 
-        self.X_train = torch.vstack(X["train"]).numpy()[:500]
-        self.Y_train = torch.tensor(Y["train"]).numpy()[:500]
-        self.X_test = torch.vstack(X["test"]).numpy()[:100]
-        self.Y_test = torch.tensor(Y["test"]).numpy()[:100]
+        self.X_train = torch.vstack(X["train"]).numpy()[:TRAIN_NUM]
+        self.Y_train = torch.tensor(Y["train"]).numpy()[:TRAIN_NUM]
+        self.X_test = torch.vstack(X["test"]).numpy()[:TEST_NUM]
+        self.Y_test = torch.tensor(Y["test"]).numpy()[:TEST_NUM]
 
+        print(self.X_train.shape)
         self.nice_data_available = True
 
     def reset(self):
@@ -173,7 +183,17 @@ class MNISTNumDistEnv(MNISTEnv):
 
 
 class MNISTSimEnv(MNISTEnv):
-    def __init__(self, algo, T, batch_size, persistence, context=None, pca_dims=None, eval_freq=1000, to_eval=[]):
+    def __init__(
+        self,
+        algo,
+        T,
+        batch_size,
+        persistence,
+        context=None,
+        pca_dims=None,
+        eval_freq=1000,
+        to_eval=[],
+    ):
         """
         Mnist environment
 
@@ -182,7 +202,14 @@ class MNISTSimEnv(MNISTEnv):
             persistence: how many rounds to keep the same dataset for
         """
         super().__init__(
-            algo, T, batch_size, persistence, pca_dims, context, eval_freq=eval_freq, to_eval=to_eval
+            algo,
+            T,
+            batch_size,
+            persistence,
+            pca_dims,
+            context,
+            eval_freq=eval_freq,
+            to_eval=to_eval,
         )
         self.possible_actions = [-1, 1]
 
@@ -223,14 +250,14 @@ class MNISTSimEnv(MNISTEnv):
             context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
 
         elif context == "quadratic":
-            context_partial = torch.tensor([i*j for i,j in list(itertools.product(imgx, imgy))])
+            context_partial = torch.tensor(
+                [i * j for i, j in list(itertools.product(imgx, imgy))]
+            )
             context_partial = torch.cat((context_partial, torch.tensor([a])))
         else:
             raise NotImplementedError
 
         return context_partial
-
-
 
     def step(self, action):
         """
