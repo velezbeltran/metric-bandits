@@ -44,6 +44,18 @@ class LinUCB(BaseAlgo):
         """
         actions is a list-like object dictionary and contains the available actions
         """
+
+         # At step 0, initialise all variables
+        if self.t == 0:
+            # Get the dimension of (x,x',a) vector
+            self.dim = len(list(actions.values())[0])
+            self.A = torch.eye(self.dim)
+            self.A_inv = self.A
+            self.b = torch.zeros(self.dim)
+
+        self.theta = torch.matmul(self.A_inv, self.b)
+
+
         if self.active:
             return self.choose_action_active(actions)
         else:
@@ -54,17 +66,6 @@ class LinUCB(BaseAlgo):
         actions is a list-like object dictionary and contains the available actions
         """
         self.ucb_estimate = {}
-
-        # At step 0, initialise all variables
-        if self.t == 0:
-            # Get the dimension of (x,x',a) vector
-            self.dim = len(list(actions.values())[0])
-            self.A = torch.eye(self.dim)
-            self.A_inv = self.A
-            self.b = torch.zeros(self.dim)
-
-    
-        self.theta = torch.matmul(self.A_inv, self.b)
 
         # Loop through all available action, context pairs
         for action in actions:
@@ -79,17 +80,7 @@ class LinUCB(BaseAlgo):
     
     def choose_action_active(self, actions):
 
-        # At step 0, initialise all variables
-        if self.t == 0:
-            # Get the dimension of (x,x',a) vector
-            self.dim = len(list(actions.values())[0])
-            self.A = torch.eye(self.dim)
-            self.A_inv = self.A
-            self.b = torch.zeros(self.dim)
-
-        self.theta = torch.matmul(self.A_inv, self.b)
-
-        self.mean_estimate = defaultdict(list)
+        self.means = defaultdict(list)
         self.ucb_estimate = defaultdict(int)
         self.unique_contexts = defaultdict(list)
 
@@ -100,17 +91,18 @@ class LinUCB(BaseAlgo):
         random.shuffle(items)
         for action, ctxt in items:
             ctxt = str(ctxt[:-1])
-            mean = self.get_mean_estimate(actions[action])
-            self.mean_estimate[ctxt].append(mean)
+            val = self.get_mean_estimate(actions[action])
+            self.means[ctxt].append(val)
             self.ucb_estimate[ctxt] += self.get_opt_estimate(actions[action])
             self.unique_contexts[ctxt].append(action)
 
-        # Choose to make a decision on the pair with the highes opt value
+        # Choose to make a desicion on the pair with the highes opt value
         self.last_context = max(self.ucb_estimate, key=self.ucb_estimate.get)
         # choose the action with the highest value
-        ctxt_val = self.mean_estimate[self.last_context]
+        ctxt_val = self.means[self.last_context]
         argmax = 0 if ctxt_val[0] > ctxt_val[1] else 1
         self.last_action = self.unique_contexts[self.last_context][argmax]
+        # self.last_grad = ctxt_val[argmax][1]
         self.contexts_played.append(actions[self.last_action])
         return self.last_action
 
@@ -147,12 +139,15 @@ class LinUCB(BaseAlgo):
         self.b = self.b + torch.mul(latest_context, reward)
         self.t += 1
 
-    def estimate(self, actions):
+    def estimate(self, context):
         # Loop through all available action, context pairs
-        for action in actions:
-            self.ucb_estimate[action] = self.get_ucb_estimate(actions[action])
+        self.metric = self.theta[:-1]
+        # for action in actions:
+        #     self.ucb_estimate[action] = self.get_mean_estimate(actions[action])
+
+        estimate = torch.dot(self.metric, context)
         # return the predicted action label
-        return max(self.ucb_estimate, key=self.ucb_estimate.get)[-1]
+        return estimate
         
 
     def reset(self):

@@ -1,6 +1,6 @@
 """
 Script for ealuation the accuracy of our models with respect to
-a Linear classifier and L2 loss.
+a square loss.
 """
 
 from collections import defaultdict
@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 from metric_bandits.algos.linucb import LinUCB
-from metric_bandits.envs.moons_env import MoonsSimEnv
+from metric_bandits.envs.two_blobs_env import TwoBlobSimEnv
 from metric_bandits.utils.plots import plot_ci
 from metric_bandits.constants.paths import FIGURES_PATH
 from metric_bandits.utils.read_write import save_object
@@ -29,12 +29,12 @@ active = True
 
 
 # constants for plotting
-l2_name = "LinUCB-active-vs-base-moons-square-loss"
+l2_name = "LinUCB-active-vs-base-twoblob-square-loss"
 
 folder = os.path.join(FIGURES_PATH, "active/linear/")
 x_label = "Number of queries"
 
-l2_y_label = "L2 distance"
+l2_y_label = "Empirical Risk "
 # Constants for the experiment
 num_trials = 20
 
@@ -60,7 +60,7 @@ for explore_param in [0, 0.1]:
             active=active,
             verbose=False,
         )
-        env = MoonsSimEnv(
+        env = TwoBlobSimEnv(
             algo,
             T,
             batch_size,
@@ -97,4 +97,4 @@ plot_ci(
     x_axis=x_axis,
 )
 
-save_object(eval_metrics, "big_run")
+save_object(eval_metrics, "trial2")

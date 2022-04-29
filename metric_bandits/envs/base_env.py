@@ -4,6 +4,7 @@ for exploration
 """
 from collections import defaultdict
 import random
+import itertools
 
 import numpy as np
 import torch as torch
@@ -183,7 +184,7 @@ class BaseEnv:
         b_idxs = self.idx["test"]
         X, y = self.data
         test_set = list(zip(X[b_idxs], y[b_idxs]))
-        random.shuffle(test_set)
+        # random.shuffle(test_set)
         bX, by = zip(*test_set)
         # batch = [self.data[i] for i in b_idxs]
 
@@ -191,27 +192,37 @@ class BaseEnv:
         
         self.real_label = []
         self.pred_label = []
+        TEST_SIZE = 500
         
         # produce the actions
-        for i in range(100):
-            for j in range(i + 1, 100):
+        for i in range(TEST_SIZE):
+            for j in range(i + 1, TEST_SIZE):
                 self.test_actions = {}
-                for a in self.possible_actions:
-                    imgx, labelx = bX[i], by[i]
-                    imgy, labely = bX[j], by[j]
-                    imgx, imgy = imgx.flatten(), imgy.flatten()
-                    context_partial = self.make_context(imgx, imgy, a, self.context)
-                    
-                    context_partial = context_partial.float()
-                    self.test_actions[context_partial] = context_partial
+                #for a in self.possible_actions:
+                imgx, labelx = bX[i], by[i]
+                imgy, labely = bX[j], by[j]
+                imgx, imgy = imgx.flatten(), imgy.flatten()
+                # context_partial = self.make_context(imgx, imgy, a, self.context)
+                context_partial = torch.tensor([i*j for i,j in list(itertools.product(imgx, imgy))])
+                
+                context_partial = context_partial.float()
+                self.test_actions[context_partial] = context_partial
                 self.real_label.append(2 * int(labelx == labely) - 1)
-                self.pred_label.append(self.algo.estimate(self.test_actions))
+                self.pred_label.append(self.algo.estimate(context_partial))
         # print("Produced Estimates")
 
+
+        # Temporary cleanup:
+        # bad_count = 0
+        # for _ind, i in enumerate(self.pred_label):
+        #     if i not in [1,-1]:
+        #         self.pred_label[_ind] = random.choice([1,-1])
+        #         bad_count += 1
         # evaluate empirical estimate:
-        matches = [1 if self.pred_label[i] == self.real_label[i] else 0 for i in range(len(self.pred_label))]
+       
+        matches = [(self.pred_label[i] - self.real_label[i])**2 for i in range(len(self.pred_label))]
         acc = sum(matches)/len(matches)
-        # print(acc)
+        # print("bad count: " + str(bad_count))
         self.eval_metrics["square_loss"].append(acc)
 
     @property
