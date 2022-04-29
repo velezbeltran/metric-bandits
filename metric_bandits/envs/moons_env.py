@@ -6,6 +6,7 @@ last dimension of action is the proposed distance.
 
 
 import torch
+import itertools
 
 from metric_bandits.constants.data import TEST_NUM, TRAIN_NUM
 from metric_bandits.data.moons import MOONS
@@ -21,6 +22,7 @@ class MoonsEnv(BaseEnv):
         persistence,
         eval_freq=1000,
         to_eval=["knn, embedding"],
+        context=None
     ):
         """
         Initializes the environment
@@ -41,6 +43,7 @@ class MoonsEnv(BaseEnv):
         self.init_data()
         self.rewards = []
         self.granularity = [i for i in range(10)]
+        self.context = "linear" if context == None else context
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # If algorithm is LinUCB, change settings:
@@ -100,6 +103,7 @@ class MoonsSimEnv(MoonsEnv):
         eval_freq=1000,
         possible_actions=[-1, 1],
         to_eval=["knn, embedding"],
+        context=None
     ):
         """
         Mnist environment
@@ -109,7 +113,7 @@ class MoonsSimEnv(MoonsEnv):
             persistence: how many rounds to keep the same dataset for
         """
         super().__init__(
-            algo, T, batch_size, persistence, eval_freq=eval_freq, to_eval=to_eval
+            algo, T, batch_size, persistence, eval_freq=eval_freq, to_eval=to_eval,context=context
         )
         self.possible_actions = possible_actions
 
@@ -141,12 +145,24 @@ class MoonsSimEnv(MoonsEnv):
                         imgx, labelx = bX[i], by[i]
                         imgy, labely = bX[j], by[j]
                         imgx, imgy = imgx.flatten(), imgy.flatten()
-                        context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
+                        context_partial = self.make_context(imgx, imgy, a, self.context)
                         context_partial = context_partial.to(self.device).float()
                         self.current_actions[context_partial] = context_partial
                         self.real_label[context_partial] = 2 * int(labelx == labely) - 1
 
         return self.current_actions
+
+    def make_context(self, imgx, imgy, a, context):
+        if context == "linear":
+            context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
+
+        elif context == "quadratic":
+            context_partial = torch.tensor([i*j for i,j in list(itertools.product(imgx, imgy))])
+            context_partial = torch.cat((context_partial, torch.tensor([a])))
+        else:
+            raise NotImplementedError
+
+        return context_partial
 
     def step(self, action):
         """

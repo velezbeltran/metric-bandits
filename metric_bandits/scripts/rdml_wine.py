@@ -1,5 +1,5 @@
 from metric_bandits.algos.rdml import RDML
-from metric_bandits.envs.rdml_env import WineEnv
+from metric_bandits.envs.wine_env import WineEnv
 
 # Constants for the environment
 T = 10000

@@ -3,6 +3,7 @@ Contains the code for creating an environment for an abstract environment
 for exploration
 """
 from collections import defaultdict
+import random
 
 import numpy as np
 import torch as torch
@@ -42,6 +43,7 @@ class BaseEnv:
         self.X_train, self.Y_train = None, None
         self.X_test, self.Y_test = None, None
         self.nice_data_available = False
+        self.idx = {}
 
         self.cum_regrets = [0]  # keeps track of the regret per round
         self.rewards = []  # keeps track of the rewards per round
@@ -167,6 +169,50 @@ class BaseEnv:
         loss = loss[np.triu_indices(len(self.Y_test), 1)]
         loss = np.sum(loss) / ((len(self.Y_test) ** 2 - len(self.Y_test)) / 2)
         self.eval_metrics["l2_loss_embed"].append(loss)
+
+    def eval_square_loss(self):
+        if not hasattr(self.algo, "estimate"):
+            raise Exception("Algorithm does not have a estimator function so can't evaluate square loss")
+        
+        if not hasattr(self, "make_context") or not hasattr(self, "context"):
+            raise Exception("Environment does not have a context function or variable so can't evaluate square loss")
+
+        estimate = self.algo.estimate
+
+        # choose the next batch of images to use for training
+        b_idxs = self.idx["test"]
+        X, y = self.data
+        test_set = list(zip(X[b_idxs], y[b_idxs]))
+        random.shuffle(test_set)
+        bX, by = zip(*test_set)
+        # batch = [self.data[i] for i in b_idxs]
+
+        # store stuff to interpret returned action
+        
+        self.real_label = []
+        self.pred_label = []
+        
+        # produce the actions
+        for i in range(100):
+            for j in range(i + 1, 100):
+                self.test_actions = {}
+                for a in self.possible_actions:
+                    imgx, labelx = bX[i], by[i]
+                    imgy, labely = bX[j], by[j]
+                    imgx, imgy = imgx.flatten(), imgy.flatten()
+                    context_partial = self.make_context(imgx, imgy, a, self.context)
+                    
+                    context_partial = context_partial.float()
+                    self.test_actions[context_partial] = context_partial
+                self.real_label.append(2 * int(labelx == labely) - 1)
+                self.pred_label.append(self.algo.estimate(self.test_actions))
+        # print("Produced Estimates")
+
+        # evaluate empirical estimate:
+        matches = [1 if self.pred_label[i] == self.real_label[i] else 0 for i in range(len(self.pred_label))]
+        acc = sum(matches)/len(matches)
+        # print(acc)
+        self.eval_metrics["square_loss"].append(acc)
 
     @property
     def mode(self):
