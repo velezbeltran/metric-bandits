@@ -13,12 +13,16 @@
 \usepackage{amsmath}
 \usepackage{setspace}
 \usepackage{bbm}
-\usepackage[linesnumbered,ruled,commentsnumbered]{algorithm2e}
+\usepackage[commentsnumbered]{algorithm2e}
 \usepackage{parskip}
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{subcaption}
+\usepackage{soul,xcolor}
 
+%general settings
+\setstcolor{red}
+\graphicspath{{../report/figures/active/neural/},{../report/figures/}}
 
 %Information to be included in the title page:
 \usetheme{Boadilla}
@@ -35,11 +39,6 @@
     \titlepage
 \end{frame}
 
-
-\begin{frame}
-\frametitle{Long Term Goal:}
-To reduce in a provable way online and active metric learning to a bandit problem (hopefully encoding hierarchical structure).
-\end{frame}
 
 % ----------------------------------------------------
 % General summary of accomplishments
@@ -70,7 +69,7 @@ according to how ``similar'' they are.
     We choose pair $k_t \in [K]$ and get reward $r_{t,k_{t}} \in \{1, -1\}$ based on whether they are similar.
 
     We are trying to minimize:
-    \[ R_T = \mathbb{E}\left[\sum_{t =1}^T \phi(x_{t,k^\star_t}, y_{t,k^\star_t}) - \phi(x_{t,k_t}, y_{t,k_t})\right]\]
+    \[ R_T = \mathbb{E}\left[\sum_{t =1}^T r_{t, k^\star_t} - r_{t, k_t}\right] \]
     where $k_t^\star = \text{argmax}_{k\in [K]} \phi(x_{t,k}, y_{t,k})$
 \end{frame}
 
@@ -82,8 +81,253 @@ according to how ``similar'' they are.
     Denote the loss between an estimate $\hat{\phi}$ a $\phi$ as
     \[ \mathcal{L}(\phi, \hat{\phi}) = \mathbb{E}_{(x, y) \sim \mathcal{D} \times \mathcal{D}}[(\hat{\phi}(x,y) - \phi(x, y))^2] \]
     Goal is to find
-    \[\min_{\phi \in \mathcal{F}} \mathcal{L}(\hat{\phi}_T, \phi)\]
+    \[\min_{\hat{\phi}_T \in \mathcal{F}} \mathcal{L}(\hat{\phi}_T, \phi)\]
+\end{frame}
 
+\begin{frame}{}
+    \frametitle{First idea:}
+    Assume that
+    \[\phi(x, y) = x^\top A y = \sum_{i =1}^n\sum_{j=1}^n x_i y_j A_{i,j} \]
+    and then use linucb like methods.
+
+    % two columns of pros and cons
+    \vspace{1cm}
+    \begin{columns}
+        \begin{column}{0.5\textwidth}
+            \textbf{Pros:}
+            \begin{itemize}
+                \item Easy to reason about.
+                \item Fast.
+            \end{itemize}
+            \end{column}
+
+            \begin{column}{0.5\textwidth}
+            \textbf{Cons:}
+            \begin{itemize}
+                \item Can only learn linear similarities.
+            \end{itemize}
+            \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{}
+    \frametitle{First idea Solution to problem 1:}
+    {\small
+    \begin{algorithm}[H]
+        \setstretch{1}
+          \SetKwInOut{Input}{Input}
+          \Input{Rounds $T$ and exploration parameter $\alpha$}
+          $A \gets I_{n^2}$\;
+          $b \gets 0_{n^2}$\;
+          \For{$t \in [T]$}{
+            $\theta_t \gets A^{-1}b$\;
+            Observe $K$ pairs of vectors $x^k \in \mathbb{R}^n$, $y^k \in \mathbb{R}^n$\;
+            Create $z_{t,k} = (x_1^k, y_1^k, x_1^k, y_1^k, \dots, x_n^k y_{n-1}^k, x_n^k ,y_n^k)$\;
+            \For{$k \in [K]$}{
+              $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k}^\top A^{-1} z_{t,a}}$
+            }
+            Choose action $k_t = \text{argmax}_a p_{t,a}$ with ties broken arbitrarily\;
+            Observe payoff $ r_t \in \{-1,1 \}$\;
+            $A \gets A + z_{t,k_t}z_{t,k_t}^\top$\;
+            $b \gets z_{t,k_t}r_t$\;
+          }
+        \caption{OnSim-LinUCB}\label{algo:active-linucb}
+
+      \end{algorithm}
+    }
+\end{frame}
+
+\begin{frame}{}
+    \frametitle{Second idea: Solution to active learning problem}
+    Use the ideas about optimist reward to encourage the learner to explore and chose points
+    optimally.
+
+    We replace
+    \[ p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k}^\top A^{-1} z_{t,a}} \]
+    by
+    \[ p_{t,a} \gets \sqrt{z_{t,k}^\top A^{-1} z_{t,a}} \]
+\end{frame}
+
+\begin{frame}{}
+    \frametitle{Second Idea: Solution to active learning problem}
+    {\small
+    \begin{algorithm}[H]
+        \setstretch{1.2}
+          \SetKwInOut{Input}{Input}
+          \Input{Rounds $T$ and exploration parameter $\alpha$}
+          $A \gets I_{n^2}$\;
+          $b \gets 0_{n^2}$\;
+          \For{$t \in [T]$}{
+            $\theta_t \gets A^{-1}b$
+            Sample $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
+            Create $z_{t,k} = (x_1^k y_1^k, x_1^k y_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
+            \For{$k \in [K]$}{
+              $p_{t,a} \gets  \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
+                        }
+            Choose action pair $k_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.\;
+            Observe label $ r_t \in \{-1,1 \}$\;
+            $A \gets A + z_{t,k_t}z_{t,k_t}^\top$\;
+            $b \gets z_{t,j_t}r_t$\;
+          }
+          \caption{ActiveSim-LinUCB}
+      \end{algorithm}
+    }
+\end{frame}
+
+
+\begin{frame}{}
+    \frametitle{More expressive model classes: Neural UCB}
+    Method for solving the problem using a neural network to predict the rewards.
+    \begin{itemize}
+        \item Uses a Neural Network to model the rewards.
+        \item Proably correct regret bound of $\tilde{O}(\tilde{d}\sqrt{T})$.
+        \item Slow due to the computation of a very wide matrix.
+    \end{itemize}
+\end{frame}
+
+
+\begin{frame}{}
+    \frametitle{Second model}
+    Assume that
+    \[ \phi(x,y) = \cos\left(f(x;\mathbf{\theta}), f(y;\mathbf{\theta})\right) = \frac{\langle f(x;\mathbf{\theta}), f(y;\mathbf{\theta}) \rangle}{||f(x;\mathbf{\theta})||_2 ||f(y;\mathbf{\theta})||_2}\]
+    or
+    \[ \phi(x,y) = \langle f(x;\mathbf{\theta}), f(y;\mathbf{\theta}) \rangle \]
+    where
+    \[ f(x; \theta) = b_L + W_{L} \sigma\left(b_{L-1} +  W_{L-1} \sigma\left( \dots \sigma\left(b_1 + W_1 x\right)\right) \right)\]
+
+    % two columns of pros and cons
+    \vspace{1cm}
+\end{frame}
+
+\begin{frame}{}
+    \frametitle{Algorithm for solving Online Similarity Learning Problem}
+    {\footnotesize
+    \begin{algorithm}[H]
+        \setstretch{1.2}
+          $A \gets I_{p}$\;
+          \For{$t \in [T]$}{
+            Observe $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R^n}$\;
+            \For{$k \in [K]$}{
+              $p_{t,k} \gets \phi(x,y) + \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
+            }
+            Choose pair $k_t = \text{argmax}_k p_{t,k}$ with ties broken arbitrarily\;
+            Observe payoff $ r_t \in \{-1,1 \}$\;
+            \If{$t \mod \tau_r = 0$ }{
+              $\theta \gets \text{Train}(\epsilon,E, \{(x_i^{k_i}, y_i^{k_i}, r_i)\}_{i=1}^t,b_s)$\;
+            }
+            \If{$t \mod \tau_T = 0$ }{
+              $A \gets I_p$
+            }
+            $A \gets A + \nabla_\theta \phi(x_t^k, y_t^k)(\nabla_\theta\phi(x_t^k,y_t^k))^\top$\;
+          }
+          \caption{OnSim-NeuralUCB}\label{algo:onsim-neuralucb}
+        \end{algorithm}
+    }
+\end{frame}
+
+\begin{frame}{}
+    \frametitle{Algorithm for solving Active Learning Problem}
+    {\footnotesize
+    \begin{algorithm}[H]
+        \setstretch{1.2}
+          $A \gets I_{p}$\;
+          \For{$t \in [T]$}{
+            Sample $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R}^n$ from dataset $D$\;
+            \For{$k \in [K]$}{
+              $p_{t,k} \gets \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
+              \label{change:active-neuralucb}
+            }
+            Choose pair $k_t = \text{argmax}_kp_{t,k}$ with ties broken arbitrarily\;
+            Query label $ r_t \in \{-1,1\}$\;
+            \If{$t \mod \tau_r = 0$ }{
+              $\theta \gets \text{Train}(\epsilon,E, \{(x_i^{k_i}, y_i^{k_i}, r_i)\}_{i=1}^t,b_s)$\;
+            }
+            \If{$t \mod \tau_T = 0$ }{
+              $A \gets I_p$
+            }
+            $A \gets A + \nabla_\theta \phi(x_t^k, y_t^k)(\nabla_\theta\phi(x_t^k,y_t^k))^\top$\;
+          }
+          \caption{ActiveSim-NeuralUCB}\label{algo:active-neuralucb}
+        \end{algorithm}
+    }
+\end{frame}
+
+\begin{frame}
+    \frametitle{Empirical Test with Crescent Moons:}
+
+    \begin{figure}[H]
+        \centering
+          \includegraphics[width=0.8\linewidth]{moons}
+      \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Testing a SVM on learned features}
+    % add figures
+\begin{figure}[!h]
+    \centering
+    \begin{minipage}{.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-SGD-normalized-ci}
+    \end{minipage}%
+    \begin{minipage}{.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-SGD-non-normalized-ci}
+    \end{minipage}
+    \caption{Performance SVM}
+  \end{figure}
+\end{frame}
+
+\begin{frame}{}
+    \frametitle{Comparing L2 loss of learned features}
+    % add figures
+\begin{figure}[!h]
+    \centering
+    \begin{minipage}{.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{active-vs-base-moons-l2-loss-SGD-normalized-ci}
+    \end{minipage}%
+    \begin{minipage}{.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{active-vs-base-moons-l2-loss-SGD-non-normalized-ci}
+    \end{minipage}
+    \caption{Performance SVM}
+  \end{figure}
+\end{frame}
+
+
+
+\begin{frame}{}
+    \frametitle{Comparison of regret}
+
+    % add figures
+\begin{figure}[!h]
+    \centering
+    \begin{minipage}{.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-SGD-normalized-ci}
+    \end{minipage}%
+    \begin{minipage}{.5\textwidth}
+      \centering
+      \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-SGD-non-normalized-ci}
+    \end{minipage}
+    \caption{L2 Loss}
+  \end{figure}
+\end{frame}
+
+
+\begin{frame}{}
+    \frametitle{Caveats:}
+    \begin{itemize}
+        \item The algorithm is really slow (we tried using on raw MNIST/CIFAR10 etc and it was unusable).
+        \item The results seem to be sensitive with respect to the optimizer (see next slide).
+        \item We currently don't have theoretical guarantees on the regret.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{}
+    \frametitle{Conclusion: Is this the right approach?}
+    Maybe but not exactly like this.
 \end{frame}
 
 \end{document}
