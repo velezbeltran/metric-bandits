@@ -8,7 +8,7 @@ from collections import defaultdict
 from metric_bandits.algos.linear import Linear
 from metric_bandits.algos.linucb import LinUCB
 from metric_bandits.constants.paths import FIGURES_PATH
-from metric_bandits.envs.moons_env import MoonsSimEnv
+from metric_bandits.envs.blob_env import BlobSimEnv
 from metric_bandits.utils.plots import plot_ci
 from metric_bandits.utils.read_write import load_object, save_object
 
@@ -32,16 +32,16 @@ reset_freq = 2
 
 # constants for plotting
 folder = os.path.join(FIGURES_PATH, "online_similarity/linear/")
-title = "Regret of epsilon-greedy vs linear-UCB, Quadratic Rep"
-name = "online_epsilon_vs_linear_quadcontext"
+title = "Regret of epsilon-greedy vs Qlinear-UCB, Blob"
+name = "online_epsilon_vs_qlinear_blob"
 x_label = "Number of steps"
 y_label = "Regret"
 ci = 0.95
 
 # Constants for experiment
-num_trials = 20
-greedy_explore_params = [0, 0.01, 0.1, 0.2, 0.5, 0.6, 10]
-ucb_explore_params = [0, 0.01, 0.1, 0.5, 1, 5, 10]
+num_trials = 5
+greedy_explore_params = [0, 0.1, 0.5]
+ucb_explore_params = [0, 0.1, 1]
 
 if load_from_file:
     eval_metrics = load_object(name)
@@ -66,7 +66,7 @@ for g_param, ucb_param in zip(greedy_explore_params, ucb_explore_params):
             explore_param=g_param,
             verbose=verbose
         )
-        env = MoonsSimEnv(
+        env = BlobSimEnv(
             algo,
             T,
             batch_size,
@@ -88,7 +88,7 @@ for g_param, ucb_param in zip(greedy_explore_params, ucb_explore_params):
             active=active,
             verbose=False,
         )
-        env = MoonsSimEnv(
+        env = BlobSimEnv(
             algo,
             T,
             batch_size,

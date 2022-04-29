@@ -11,7 +11,7 @@ joblib==1.1.0
 kiwisolver==1.4.2
 llvmlite==0.38.0
 matplotlib==3.5.1
--e git+ssh://git@github.com/velezbeltran/metric-bandits.git@b23993975a85ac37f7e85d4b69bef47330d17a2a#egg=metric_bandits
+-e git+ssh://git@github.com/velezbeltran/metric-bandits.git@8855609976645b39d7a34ef7d9454592eac2c440#egg=metric_bandits
 nodeenv==1.6.0
 numba==0.55.0
 numpy==1.21.5
