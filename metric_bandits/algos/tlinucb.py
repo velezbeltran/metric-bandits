@@ -4,7 +4,7 @@ from collections import defaultdict
 import torch
 
 from metric_bandits.algos.base import BaseAlgo
-from metric_bandits.utils.math import sherman_morrison
+from metric_bandits.utils.math import get_argmax, sherman_morrison
 
 
 class TLinUCB(BaseAlgo):
@@ -49,7 +49,7 @@ class TLinUCB(BaseAlgo):
     def choose_action_default(self, actions):
         self.ucb_val_opts, self.ucb_estimate = {}, {}
         for action in actions:
-            ctx = actions[action][0][:-1]  # last element is the action
+            ctx = actions[action][:, :-1]  # last element is the action
             val = self.theta.T @ ctx
             opt = self.optimist_reward(ctx)
             self.ucb_val_opts[action] = (val, opt)
@@ -57,6 +57,7 @@ class TLinUCB(BaseAlgo):
 
         # return the key with the highest value
         self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
+        self.last_context = actions[self.last_action][:, :-1]
         return self.last_action
 
     def choose_action_active(self, actions):
@@ -77,20 +78,24 @@ class TLinUCB(BaseAlgo):
         items = list(actions.items())
         random.shuffle(items)
         for action, ctxt in items:
-            ctxt = str(ctxt[0][:-1])
+            ctxt_str = str(ctxt[:, :-1])
+            ctxt = ctxt[:, :-1]
             val = self.theta.T @ ctxt
             opt = self.optimist_reward(ctxt)
-            self.ucb_val_opts[ctxt].append((val, opt))
-            self.ucb_estimate[ctxt] += opt
-            self.unique_contexts[ctxt].append(action)
+            self.ucb_val_opts[ctxt_str].append((val, opt))
+            self.ucb_estimate[ctxt_str] += opt
+            self.unique_contexts[ctxt_str].append(action)
 
         # Choose to make a desicion on the pair with the highes opt value
-        self.last_context = max(self.ucb_estimate, key=self.ucb_estimate.get).detach()
+        self.last_context_str = max(
+            self.ucb_estimate, key=self.ucb_estimate.get
+        ).detach()
 
         # choose the action with the highest value
-        ctxt_val = self.ucb_val_opts[self.last_context]
-        argmax = 0 if ctxt_val[0][0] > ctxt_val[1][0] else 1
-        self.last_action = self.unique_contexts[self.last_context][argmax]
+        ctxt_val_opt = self.ucb_val_opts[self.last_context_str]
+        argmax = get_argmax(ctxt_val_opt, lambda x: x[0])
+        self.last_action = self.unique_contexts[self.last_context_str][argmax]
+        self.last_context = actions[self.last_action][:, :-1]
         return self.last_action
 
     def optimist_reward(self, context):
