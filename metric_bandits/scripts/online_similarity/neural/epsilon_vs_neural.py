@@ -13,7 +13,7 @@ from metric_bandits.nets.siamese import SiameseNet
 from metric_bandits.utils.plots import plot_ci
 from metric_bandits.utils.read_write import load_object, save_object
 
-load_from_file = False
+load_from_file = True
 
 # Constants for the neural network
 input_dim = 2
@@ -33,7 +33,7 @@ to_eval = []
 possible_actions = [1]
 
 # Constants for the algorithms
-step_size = 0.01
+step_size = 0.001
 num_steps = 2
 train_freq = 50
 verbose = False
@@ -57,6 +57,8 @@ ucb_explore_params = [0, 0.01, 0.1, 0.5, 1, 5, 10]
 
 if load_from_file:
     eval_metrics = load_object(name)
+    for k, v in eval_metrics.items():
+        print(f"{k}: {v}")
     plot_ci(
         eval_metrics,
         folder=folder,
