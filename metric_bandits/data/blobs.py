@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-N_POINTS = 1000
+N_POINTS = 100000
 
 transform = np.array([[1, 0], [0, 3]])
 X = np.random.randn(N_POINTS, 2) * 0.1

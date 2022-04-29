@@ -2,14 +2,15 @@
 Contains the code for creating an environment for an abstract environment
 for exploration
 """
-from collections import defaultdict
 import random
+from collections import defaultdict
 
 import numpy as np
 import torch as torch
 from tqdm import tqdm
 
 from metric_bandits.utils.eval import eval_knn, eval_linear
+from metric_bandits.utils.math import cross_terms
 
 
 class BaseEnv:
@@ -170,12 +171,36 @@ class BaseEnv:
         loss = np.sum(loss) / ((len(self.Y_test) ** 2 - len(self.Y_test)) / 2)
         self.eval_metrics["l2_loss_embed"].append(loss)
 
+    def eval_l2_loss_linear(self):
+        """
+        Evaluates the l2 loss of the linear similarity metric
+        """
+        # random permutation with torch
+        perm = torch.randperm(len(self.Y_test))
+        X_test = torch.tensor(self.X_test).to(self.device, dtype=torch.float)
+
+        X_left = X_test
+        X_right = X_test[perm]
+        Y_left = torch.tensor(self.Y_test).to(self.device)
+        Y_right = torch.tensor(self.Y_test).to(self.device)[perm]
+        Y_true = 2 * (Y_left == Y_right) - 1
+
+        # get features
+        feats = cross_terms(X_left, X_right)
+        pred = feats @ self.algo.theta
+        loss = torch.mean((pred - Y_true) ** 2)
+        self.eval_metrics["l2_loss_linear"].append(loss.item())
+
     def eval_square_loss(self):
         if not hasattr(self.algo, "estimate"):
-            raise Exception("Algorithm does not have a estimator function so can't evaluate square loss")
-        
+            raise Exception(
+                "Algorithm does not have a estimator function so can't evaluate square loss"
+            )
+
         if not hasattr(self, "make_context") or not hasattr(self, "context"):
-            raise Exception("Environment does not have a context function or variable so can't evaluate square loss")
+            raise Exception(
+                "Environment does not have a context function or variable so can't evaluate square loss"
+            )
 
         estimate = self.algo.estimate
 
@@ -188,10 +213,10 @@ class BaseEnv:
         # batch = [self.data[i] for i in b_idxs]
 
         # store stuff to interpret returned action
-        
+
         self.real_label = []
         self.pred_label = []
-        
+
         # produce the actions
         for i in range(100):
             for j in range(i + 1, 100):
@@ -201,7 +226,7 @@ class BaseEnv:
                     imgy, labely = bX[j], by[j]
                     imgx, imgy = imgx.flatten(), imgy.flatten()
                     context_partial = self.make_context(imgx, imgy, a, self.context)
-                    
+
                     context_partial = context_partial.float()
                     self.test_actions[context_partial] = context_partial
                 self.real_label.append(2 * int(labelx == labely) - 1)
@@ -209,8 +234,11 @@ class BaseEnv:
         # print("Produced Estimates")
 
         # evaluate empirical estimate:
-        matches = [1 if self.pred_label[i] == self.real_label[i] else 0 for i in range(len(self.pred_label))]
-        acc = sum(matches)/len(matches)
+        matches = [
+            1 if self.pred_label[i] == self.real_label[i] else 0
+            for i in range(len(self.pred_label))
+        ]
+        acc = sum(matches) / len(matches)
         # print(acc)
         self.eval_metrics["square_loss"].append(acc)
 

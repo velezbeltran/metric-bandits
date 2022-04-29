@@ -6,6 +6,7 @@ last dimension of action is the proposed distance.
 
 
 import itertools
+import uuid
 
 import torch
 
@@ -73,8 +74,8 @@ class BlobsEnv(BaseEnv):
         # create pretty version (i.e compatible with sklarn)
         self.X_train = X[self.idx["train"]].numpy()[:TRAIN_NUM]
         self.Y_train = Y[self.idx["train"]].numpy()[:TRAIN_NUM]
-        self.X_test = X[self.idx["test"]].numpy()[TRAIN_NUM:TEST_NUM]
-        self.Y_test = Y[self.idx["test"]].numpy()[TRAIN_NUM:TEST_NUM]
+        self.X_test = X[self.idx["test"]].numpy()[:TEST_NUM]
+        self.Y_test = Y[self.idx["test"]].numpy()[:TEST_NUM]
         self.nice_data_available = True
 
     def reset(self):
@@ -94,7 +95,7 @@ class BlobsEnv(BaseEnv):
         self.cum_regrets.append((1 - r) + self.cum_regrets[-1])
 
 
-class MoonsSimEnv(BlobsEnv):
+class BlobsSimEnv(BlobsEnv):
     def __init__(
         self,
         algo,
@@ -102,8 +103,8 @@ class MoonsSimEnv(BlobsEnv):
         batch_size,
         persistence,
         eval_freq=1000,
-        possible_actions=[-1, 1],
-        to_eval=["knn, embedding"],
+        possible_actions=[1],
+        to_eval=["l2_loss_linear"],
         context=None,
     ):
         """
@@ -154,8 +155,9 @@ class MoonsSimEnv(BlobsEnv):
                         imgx, imgy = imgx.flatten(), imgy.flatten()
                         context_partial = self.make_context(imgx, imgy, a, self.context)
                         context_partial = context_partial.to(self.device).float()
-                        self.current_actions[context_partial] = context_partial
-                        self.real_label[context_partial] = 2 * int(labelx == labely) - 1
+                        uuid_str = str(uuid.uuid4())
+                        self.current_actions[uuid_str] = context_partial
+                        self.real_label[uuid_str] = 2 * int(labelx == labely) - 1
 
         return self.current_actions
 
@@ -179,7 +181,7 @@ class MoonsSimEnv(BlobsEnv):
         """
         Returns the reward for the action taken
         """
-        prop_sim = self.current_actions[action][-1]
+        prop_sim = self.current_actions[action][0][-1]
         real_sim = self.real_label[action]
         reward = prop_sim * real_sim
         self.t += 1
