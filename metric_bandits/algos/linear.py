@@ -17,7 +17,6 @@ class Linear(BaseAlgo):
         input_dim,
         explore_param,
         reg=1.0,
-        active=False,
         verbose=True,
     ):
         """
@@ -37,7 +36,6 @@ class Linear(BaseAlgo):
         self.train_t = 0
 
         # parameters to keep track of
-        self.active = active
         self.last_action = None
         self.rewards = []
 
