@@ -27,6 +27,7 @@ class BlobsEnv(BaseEnv):
         to_eval=["knn, embedding"],
         context=None,
         pregime_change=0.0,
+        balanced=False,
     ):
         """
         Initializes the environment
@@ -36,7 +37,7 @@ class BlobsEnv(BaseEnv):
             persistence: how many rounds to keep the same dataset for
         """
         # set seed
-        data = BLOBS_UNBALANCED
+        data = BLOBS_BALANCED if balanced else BLOBS_UNBALANCED
         # center and scale
         super().__init__(
             data=data, algo=algo, T=T, eval_freq=eval_freq, to_eval=to_eval
@@ -127,6 +128,7 @@ class BlobsSimEnv(BlobsEnv):
         to_eval=["l2_loss_linear"],
         context=None,
         pregime_change=0.0,
+        balanced=False,
     ):
         """
         Mnist environment
@@ -144,6 +146,7 @@ class BlobsSimEnv(BlobsEnv):
             to_eval=to_eval,
             context=context,
             pregime_change=pregime_change,
+            balanced=balanced,
         )
         self.possible_actions = possible_actions
 

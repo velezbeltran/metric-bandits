@@ -19,7 +19,7 @@ names = ["epsilon_vs_linucb_blobs_regime_change", "epsilon_vs_linucb_blobs"]
 for name in names:
     make_plots_pretty()
 
-    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 
     obj = load_object(name)
 
@@ -57,7 +57,7 @@ for name in names:
     ax.set_ylabel("Final Regret")
     # set the ticks to match names
     ax.set_xticks([], [])
-    ax.legend()
+    ax.legend(loc="upper left", prop={"size": 16})
     plt.savefig(os.path.join(FIGURES_PATH, folder, f"{name}.png"), dpi=210)
 
     df = pd.DataFrame(table)
