@@ -22,13 +22,13 @@ reg = 1.0
 T = 3000
 batch_size = 5
 persistence = 2
-eval_freq = 2
-to_eval = ["l2_loss_linear"]
+eval_freq = 20000
 possible_actions = [1]
+to_eval = []
 
 # Constants for UCB
 active = False
-num_samples = 20
+num_samples = 30
 
 
 # constants for plotting
@@ -43,8 +43,8 @@ y_label = "Regret"
 # set up the enviromenent and model
 eval_metrics = defaultdict(list)
 
-explore_params_ucb = np.linspace(0.0, 5, 6)
-explore_params_greedy = np.linspace(0.0, 0.5, 4)
+explore_params_ucb = np.linspace(0.1, 4, 3)
+explore_params_greedy = np.linspace(0.0, 0.3, 3)
 
 
 for i in range(num_samples):

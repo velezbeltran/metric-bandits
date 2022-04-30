@@ -29,7 +29,7 @@ pregime_change = 3 / T
 
 # Constants for UCB
 active = False
-num_samples = 20
+num_samples = 30
 
 
 # constants for plotting
