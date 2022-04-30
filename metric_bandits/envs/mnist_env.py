@@ -15,6 +15,7 @@ from metric_bandits.algos.linucb import LinUCB
 from metric_bandits.constants.data import TEST_NUM, TRAIN_NUM
 from metric_bandits.data.mnist import MNIST, make_pca_mnist
 from metric_bandits.envs.base_env import BaseEnv
+from metric_bandits.utils.math import accumulate
 
 
 class MNISTEnv(BaseEnv):
@@ -28,6 +29,7 @@ class MNISTEnv(BaseEnv):
         context=None,
         eval_freq=1000,
         to_eval=None,
+        possible_actions=None,
     ):
         """
         Initializes the environment
@@ -103,6 +105,17 @@ class MNISTEnv(BaseEnv):
         """
         self.rewards.append(r)
         self.cum_regrets.append((1 - r) + self.cum_regrets[-1])
+
+    @property
+    def prob_no_pairs(self):
+        """
+        probability that in a batch size there are no pairs
+        """
+        numerator = list(
+            accumulate(range(10, 10 - self.batch_size, -1), lambda x, y: x * y)
+        )[-1]
+        denominator = 10**self.batch_size
+        return numerator / denominator
 
 
 class MNISTNumDistEnv(MNISTEnv):
@@ -192,6 +205,7 @@ class MNISTSimEnv(MNISTEnv):
         context=None,
         pca_dims=None,
         eval_freq=1000,
+        possible_actions=[-1, 1],
         to_eval=[],
     ):
         """
@@ -211,7 +225,8 @@ class MNISTSimEnv(MNISTEnv):
             eval_freq=eval_freq,
             to_eval=to_eval,
         )
-        self.possible_actions = [-1, 1]
+        assert batch_size < 11, "batch size must be less than 10"
+        self.possible_actions = possible_actions
 
     def next_actions(self):
         """
@@ -273,5 +288,5 @@ class MNISTSimEnv(MNISTEnv):
         """
         Updates the environment
         """
-        self.rewards.append(r)
-        self.cum_regrets.append((1 - r) + self.cum_regrets[-1])
+        self.rewards.append(r.item())
+        self.cum_regrets.append((self.prob_no_pairs - r.item()) + self.cum_regrets[-1])

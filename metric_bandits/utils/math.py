@@ -1,6 +1,7 @@
 """
 General utilities related to math operations.
 """
+import operator
 
 
 def sherman_morrison(Z_inv, g):
@@ -37,3 +38,15 @@ def cross_terms(X_left, X_right):
     # make into size n x (m x m)
     cross_terms = cross_terms.reshape(cross_terms.shape[0], -1)
     return cross_terms
+
+
+def accumulate(iterable, func=operator.add):
+    """
+    Accumulates the values of an iterable using func
+    """
+    iterable = iter(iterable)
+    total = next(iterable)
+    yield total
+    for element in iterable:
+        total = func(total, element)
+        yield total
