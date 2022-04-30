@@ -40,7 +40,7 @@ def make_plots_pretty():
     Sets the standard plotting parameters
     """
     plt.style.use("ggplot")
-    font = {"size": 11}
+    font = {"size": 13}
     plt.rc("font", **font)
 
 
