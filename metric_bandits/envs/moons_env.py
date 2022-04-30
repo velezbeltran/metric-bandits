@@ -5,11 +5,12 @@ last dimension of action is the proposed distance.
 """
 
 
-import torch
 import itertools
 
+import torch
+
 from metric_bandits.constants.data import TEST_NUM, TRAIN_NUM
-from metric_bandits.data.moons import MOONS
+from metric_bandits.data.moons import MOONS, UNBALANCED_MOONS
 from metric_bandits.envs.base_env import BaseEnv
 
 
@@ -22,7 +23,8 @@ class MoonsEnv(BaseEnv):
         persistence,
         eval_freq=1000,
         to_eval=["knn, embedding"],
-        context=None
+        context=None,
+        balanced=False,
     ):
         """
         Initializes the environment
@@ -32,7 +34,7 @@ class MoonsEnv(BaseEnv):
             persistence: how many rounds to keep the same dataset for
         """
         # set seed
-        data = MOONS
+        data = MOONS if balanced else UNBALANCED_MOONS
         # center and scale
         super().__init__(
             data=data, algo=algo, T=T, eval_freq=eval_freq, to_eval=to_eval
@@ -43,7 +45,7 @@ class MoonsEnv(BaseEnv):
         self.init_data()
         self.rewards = []
         self.granularity = [i for i in range(10)]
-        self.context = "linear" if context == None else context
+        self.context = "linear" if context is None else context
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # If algorithm is LinUCB, change settings:
@@ -61,6 +63,8 @@ class MoonsEnv(BaseEnv):
         """
         Initializes the data and creates the pretty version
         """
+
+        # Initialize the regular data
         X, Y = self.data
         train_len = int(len(X) * 0.8)
         perm = torch.randperm(len(X))
@@ -70,10 +74,19 @@ class MoonsEnv(BaseEnv):
         self.idx["test"] = perm[train_len:]
 
         # create pretty version (i.e compatible with sklarn)
-        self.X_train = X[self.idx["train"]].numpy()[:TRAIN_NUM]
-        self.Y_train = Y[self.idx["train"]].numpy()[:TRAIN_NUM]
-        self.X_test = X[self.idx["test"]].numpy()[:TEST_NUM]
-        self.Y_test = Y[self.idx["test"]].numpy()[:TEST_NUM]
+
+        # We always test with balanced data
+        X, Y = MOONS
+        train_len = int(len(X) * 0.8)
+        perm = torch.randperm(len(X))
+        idx = {}
+        idx["train"] = perm[:train_len]
+        idx["test"] = perm[train_len:]
+
+        self.X_train = X[idx["train"]].numpy()[:TRAIN_NUM]
+        self.Y_train = Y[idx["train"]].numpy()[:TRAIN_NUM]
+        self.X_test = X[idx["test"]].numpy()[:TEST_NUM]
+        self.Y_test = Y[idx["test"]].numpy()[:TEST_NUM]
         self.nice_data_available = True
 
     def reset(self):
@@ -103,7 +116,8 @@ class MoonsSimEnv(MoonsEnv):
         eval_freq=1000,
         possible_actions=[-1, 1],
         to_eval=["knn, embedding"],
-        context=None
+        context=None,
+        balanced=False,
     ):
         """
         Mnist environment
@@ -113,7 +127,14 @@ class MoonsSimEnv(MoonsEnv):
             persistence: how many rounds to keep the same dataset for
         """
         super().__init__(
-            algo, T, batch_size, persistence, eval_freq=eval_freq, to_eval=to_eval,context=context
+            algo,
+            T,
+            batch_size,
+            persistence,
+            eval_freq=eval_freq,
+            to_eval=to_eval,
+            context=context,
+            balanced=balanced,
         )
         self.possible_actions = possible_actions
 
@@ -157,7 +178,9 @@ class MoonsSimEnv(MoonsEnv):
             context_partial = torch.cat((imgx, imgy, torch.tensor([a])))
 
         elif context == "quadratic":
-            context_partial = torch.tensor([i*j for i,j in list(itertools.product(imgx, imgy))])
+            context_partial = torch.tensor(
+                [i * j for i, j in list(itertools.product(imgx, imgy))]
+            )
             context_partial = torch.cat((context_partial, torch.tensor([a])))
         else:
             raise NotImplementedError
