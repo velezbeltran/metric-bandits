@@ -1,88 +1,76 @@
-"""
-This is an implementation of LinUCB: UCB with linear hypothesis
-"""
-
-from math import sqrt
 import random
 from collections import defaultdict
-from metric_bandits.algos.base import BaseAlgo
-import numpy as np
-from metric_bandits.utils.math import square_matrix_norm, sherman_morrison
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+
+from metric_bandits.algos.base import BaseAlgo
+from metric_bandits.utils.math import get_argmax, sherman_morrison
+
 
 class LinUCB(BaseAlgo):
     def __init__(
         self,
-        matrix_tuning_parameter=1,
-        explore_param=1,
+        input_dim,
+        explore_param,
+        reg=1.0,
         active=False,
-        verbose=False
+        verbose=True,
     ):
-        # Tuning parameter, set  to 1 by default.
-        self._lambda = matrix_tuning_parameter
+        """
+        If active is true, the model forgets completely about regret and just takes actions
+        with the aim of maximizing information gain.
+        """
+        super().__init__()
         self.explore_param = explore_param
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.verbose = verbose
+        self.input_dim = input_dim
+        self.reg = reg
 
-        # Starting state:
-        self.A = None
-        self.A_inv = None
-        self.b = None
+        # state of the algorithm
+        self.Z_inv = None
         self.t = 0
-        self.theta = None
-        self.dim = 0
-        self.active=active
+        self.train_t = 0
 
-         # parameters to keep track of
+        # parameters to keep track of
+        self.active = active
         self.last_action = None
         self.rewards = []
-        self.contexts_played = []
-
 
     def choose_action(self, actions):
         """
         actions is a list-like object dictionary and contains the available actions
         """
-
-         # At step 0, initialise all variables
-        if self.t == 0:
-            # Get the dimension of (x,x',a) vector
-            self.dim = len(list(actions.values())[0])
-            self.A = torch.eye(self.dim)
-            self.A_inv = self.A
-            self.b = torch.zeros(self.dim)
-
-        self.theta = torch.matmul(self.A_inv, self.b)
-
-
         if self.active:
             return self.choose_action_active(actions)
         else:
             return self.choose_action_default(actions)
 
     def choose_action_default(self, actions):
-        """
-        actions is a list-like object dictionary and contains the available actions
-        """
-        self.ucb_estimate = {}
-
-        # Loop through all available action, context pairs
+        self.ucb_val_opts, self.ucb_estimate = {}, {}
         for action in actions:
-            self.ucb_estimate[action] = self.get_ucb_estimate(actions[action])
-            
+            ctx = actions[action][:, :-1]  # last element is the action
+            val = self.theta.T @ ctx
+            opt = self.optimist_reward(ctx)
+            self.ucb_val_opts[action] = (val, opt)
+            self.ucb_estimate[action] = val + opt
+
         # return the key with the highest value
         self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
-        self.contexts_played.append(actions[self.last_action])
-        
+        self.last_context = actions[self.last_action][:, :-1]
         return self.last_action
 
-    
     def choose_action_active(self, actions):
+        """
+        Chooses an action based on the current state of the model. The pair that is chossen
+        is the one that has the highest gradient. Currently only works in the implementation
+        where a similarity is provided at the end and there are two pairs.
 
-        self.means = defaultdict(list)
+        This is not the cleanest way of doing this but it probably is the easiest one at the moment.
+        """
         self.ucb_estimate = defaultdict(int)
         self.unique_contexts = defaultdict(list)
+        self.ucb_val_opts = defaultdict(list)
 
         # Keep track of relevant values per unique context
 
@@ -90,74 +78,54 @@ class LinUCB(BaseAlgo):
         items = list(actions.items())
         random.shuffle(items)
         for action, ctxt in items:
-            ctxt = str(ctxt[:-1])
-            val = self.get_mean_estimate(actions[action])
-            self.means[ctxt].append(val)
-            self.ucb_estimate[ctxt] += self.get_opt_estimate(actions[action])
-            self.unique_contexts[ctxt].append(action)
+            ctxt_str = str(ctxt[:-1])
+            ctxt = ctxt[:-1]
+            val = self.theta.T @ ctxt
+            opt = self.optimist_reward(ctxt)
+            self.ucb_val_opts[ctxt_str].append((val, opt))
+            self.ucb_estimate[ctxt_str] += opt
+            self.unique_contexts[ctxt_str].append(action)
 
         # Choose to make a desicion on the pair with the highes opt value
-        self.last_context = max(self.ucb_estimate, key=self.ucb_estimate.get)
+        self.last_context_str = max(self.ucb_estimate, key=self.ucb_estimate.get)
+
         # choose the action with the highest value
-        ctxt_val = self.means[self.last_context]
-        argmax = 0 if ctxt_val[0] > ctxt_val[1] else 1
-        self.last_action = self.unique_contexts[self.last_context][argmax]
-        # self.last_grad = ctxt_val[argmax][1]
-        self.contexts_played.append(actions[self.last_action])
+        ctxt_val_opt = self.ucb_val_opts[self.last_context_str]
+        argmax = get_argmax(ctxt_val_opt, lambda x: x[0])
+        self.last_action = self.unique_contexts[self.last_context_str][argmax]
+        self.last_context = actions[self.last_action][:-1]
         return self.last_action
 
-    
-    def get_mean_estimate(self, context):
-        mean = torch.dot(self.theta, context)
-        return mean
-
-    def get_opt_estimate(self, context):
-        upper_dev = self.explore_param * sqrt(square_matrix_norm(self.A_inv, context))
-        return upper_dev
-        
-
-    def get_ucb_estimate(self, context):
-        # Dont have self.theta.T here.
-        mean = torch.dot(self.theta, context)
-        upper_dev = self.explore_param * sqrt(square_matrix_norm(self.A_inv, context))
-
-        return mean + upper_dev
+    def optimist_reward(self, context):
+        """
+        Returns the optimist reward for a given context.
+        """
+        return self.explore_param * torch.sqrt(context.T @ self.Z_inv @ context)
 
     def update(self, reward):
         """
         Updates the model
-        reward is 1 if metric was correct, else 0
         """
         self.rewards.append(reward)
 
-        # Unsqueezing here to fix dim error in downstream sherman morrison update.
-        latest_context = self.contexts_played[-1]
+        # update our confidence matrix
+        self.Z_inv = sherman_morrison(self.Z_inv, self.last_context)
+        self.b = self.b + self.last_context * reward
 
-        # Update the model params:
-        self.A = self.A + latest_context @ latest_context.T
-        self.A_inv = sherman_morrison(self.A_inv, latest_context.unsqueeze(-1))
-        self.b = self.b + torch.mul(latest_context, reward)
+        # decide whether to train the model
         self.t += 1
 
-    def estimate(self, context):
-        # Loop through all available action, context pairs
-        self.metric = self.theta[:-1]
-        # for action in actions:
-        #     self.ucb_estimate[action] = self.get_mean_estimate(actions[action])
-
-        estimate = torch.dot(self.metric, context)
-        # return the predicted action label
-        return estimate
-        
+    @property
+    def theta(self):
+        return self.Z_inv @ self.b
 
     def reset(self):
         """
         Resets the model
         """
-        self.A = None
-        self.b = None
-        self.dim = None
-        print("Reset model.")
-
-
-
+        self.Z_inv = self.reg * torch.eye(
+            self.input_dim**2, requires_grad=False, device=self.device
+        )
+        self.b = torch.zeros(
+            (self.input_dim**2, 1), requires_grad=False, device=self.device
+        )
