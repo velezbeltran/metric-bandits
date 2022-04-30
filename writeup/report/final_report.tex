@@ -20,7 +20,13 @@
 \usepackage{caption}
 \usepackage{subcaption}
 
-\graphicspath{{./figures/active/neural/}}
+\graphicspath{
+  {./figures/active/neural/}
+  {./figures/active/linear/}
+  {./figures/online_similarity/linear/}
+  {./figures/online_similarity/neural/}
+}
+
 \IncMargin{1.5em}
 
 \title{Active Heirarchical Metric Learning}
@@ -107,27 +113,8 @@ Mathematically, we model the similarity of two points as  $\phi(x, y) = x^\top A
 This is reasonable if we consider that
 \[\phi(x, y) = x^\top A y = \sum_{i =1}^n\sum_{j=1}^n x_i y_j A_{i,j} \]
 which we is linear in $A$ and thus allows us to use the framework of LinUCB for our problem.
-Attending to this fact, one can see that Algorithm \ref{algo:onsim-linucb} is almost identical to the first algorithms in \cite{linucb}.
-\begin{algorithm}
-  \setstretch{1.2}
-    \SetKwInOut{Input}{Input}
-    \Input{Rounds $T$ and exploration parameter $\alpha$}
-    $A \gets I_{n^2}$\;
-    $b \gets 0_{n^2}$\;
-    \For{$t \in [T]$}{
-      $\theta_t \gets A^{-1}b$
-      Observe $K$ pairs of vectors $x^k \in \mathbb{R}^n$, $y^k \in \mathbb{R}^n$\;
-      Create $z_{t,k} = (x_1^k, y_1^k, x_1^k, y_1^k, \dots, x_n^k y_{n-1}^k, x_n^k ,y_n^k)$\;
-      \For{$k \in [K]$}{
-        $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k}^\top A^{-1} z_{t,a}}$
-      }
-      Choose action $k_t = \text{argmax}_a p_{t,a}$ with ties broken arbitrarily\;
-      Observe payoff $ r_t \in \{-1,1 \}$\;
-      $A \gets A + z_{t,k_t}z_{t,k_t}^\top$\;
-      $b \gets z_{t,k_t}r_t$\;
-    }
-    \caption{OnSim-LinUCB}\label{algo:onsim-linucb}
-\end{algorithm}
+The algorithm can be found in the appendix in \ref{algo:onsim-linucb}. We omit it from the main text due to its similarity with the first algorithm in \cite{linucb}.
+
 
 \subsubsection{OnSim-NeuralUCB}
 The expressive power of the above framework is quite limited because of the fact that Algorithm \ref{algo:onsim-linucb} assumes that similarity is the result
@@ -214,36 +201,14 @@ We test separately NeuralUCB and LinUCB based algorithms as we logically expect 
 very differently due to the limitations of a linear approach.
 
 
-\begin{algorithm}
-  \setstretch{1.2}
-    \SetKwInOut{Input}{Input}
-    \Input{Rounds $T$ and exploration parameter $\alpha$}
-    $A \gets I_{n^2}$\;
-    $b \gets 0_{n^2}$\;
-    \For{$t \in [T]$}{
-      $\theta_t \gets A^{-1}b$
-      Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
-      Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
-      \For{$k \in [K]$}{
-        $p_{t,a} \gets  \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
-        \label{change:active-linucb}
-      }
-      Choose action pair $k_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.\;
-      Observe label $ r_t \in \{-1,1 \}$\;
-      $A \gets A + z_{t,k_t}z_{t,k_t}^\top$\;
-      $b \gets z_{t,j_t}r_t$\;
-    }
-    \caption{Active-LinUCB}\label{algo:active-linucb}
-\end{algorithm}
 
 \subsection{NeuralUCB}
-
 \paragraph{Dataset}
-Although we tested on various datasets including MNIST, CIFAR-10 and crescent moons, we found that the algorithm was impractical to use on the first two due to the expensive computation
-of the matrix operation.
-To reduce the dimension we had to apply PCA. However because this process implicitely leads to a better representation
-useful for our scenarios, we opted not to include the results here an only focus on the performance of crescent moons.
-However, these experiments can be found on the associated github repo.
+Although we tested on various datasets we found the costs to train on non-toy datasets prohibitive for the neural version of the algorithms.
+As a result, we mainly tested on toy datasets and provide results only for the famous crescent moons dataset an implementation of which can
+be found
+\href{https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_moons.html}{here}.
+We also provide results on MNIST dataset in section (\ref{sec:additional-experiments}).
 
 \paragraph{Neural Network}
 For our experiments we used a 3 layer neural network with 25 hidden units in each layer and an output dimension of 2.
@@ -330,6 +295,95 @@ Like in the previous experiment all graphs contain thegit mean and a 95\% confid
 the exploration parameter.\footnote{The appendix contains a more thorough graph with even more values.}
 
 
+\subsection{LinearUCB}
+\subparagraph{Dataset:}
+To test the linear version of our algorithm we created a blobs dataset.
+Every point is drawn from the following process. Assume that $x_i' \sim \mathcal{N}((0, 0)^\top,I_2)$ and $p_i \sim \text{Bernoulli}(p)$ where $p$ is
+some parameter.
+Then the data point $x_i$ is drawn from the follwing process
+\[x_i = \begin{bmatrix} 3 & 0\\ 0 & 1\\ \end{bmatrix} x_i' -(1-p_i)
+\begin{bmatrix}
+1\\
+1\\
+\end{bmatrix}
++ p_i
+\begin{bmatrix}
+1\\
+0\\
+\end{bmatrix}
+\]
+which corresponds to two blobs one placed on the left axis and one on the right axis.
+We say that two points are similar if they share the same value of $p$.
+We refer to this dataset as the Blobs dataset.
+
+\begin{algorithm}
+  \setstretch{1.2}
+    \SetKwInOut{Input}{Input}
+    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    $A \gets I_{n^2}$\;
+    $b \gets 0_{n^2}$\;
+    \For{$t \in [T]$}{
+      $\theta_t \gets A^{-1}b$
+      Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
+      Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
+      \For{$k \in [K]$}{
+        $p_{t,a} \gets  \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
+        \label{change:active-linucb}
+      }
+      Choose action pair $k_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.\;
+      Observe label $ r_t \in \{-1,1 \}$\;
+      $A \gets A + z_{t,k_t}z_{t,k_t}^\top$\;
+      $b \gets z_{t,j_t}r_t$\;
+    }
+    \caption{Active-LinUCB}\label{algo:active-linucb}
+\end{algorithm}
+
+
+\subsubsection{Experiment 1: Effectiveness of active learning balanced and unbalanced datset}
+We test the effectiveness of active learning on the balanced and unbalanced datasets.
+For the unbalanced instance we use $p = 0.1$ but provide the results of an l2 loss assuming that the real distribution of the data is balanced.
+This is done to simulate a situation in which our collected unlabeled data is based and to show the improvement in robustness of the
+algorithm. The plots contain the mean and the 95\% confidence interval for the regret over 30 runs of each algorithm.
+
+\begin{figure}[!h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-blobs-l2-loss_balanced-ci}
+    \caption{Active vs non-active balanced datasets}\label{fig:linucb-blobs-regret-no-regime-change}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-blobs-l2-loss_unbalanced-ci}
+    \caption{Active vs non active balanced datasets}\label{fig:linucb-blobs-regret-regime-change}
+  \end{minipage}
+\end{figure}
+
+
+\subsubsection{Experiment 2: Regret of active similarity with regime shifts}
+To show that our approach leads to enhanced robustness we assume that we find ourselves in a situation
+where the might be regime shifts in the data in the sense that the underlying distribution at which the data is provided
+to the algorithm changes.
+
+In particular, in the situation below we assume that initially the data is provided to us where there is an equal changce of getting a point
+from the left blob and right blob but there at every time-step there is a $1/3000$ chance that
+we will have a regime shift where the data is now sampled such that $p = 0.1$.
+Plots (\ref{fig:linucb-blobs-regret-no-regime-change}) and (\ref{fig:linucb-blobs-regret-regime-change}) indicate the mean regret of the algorithm at the end
+and the error bars depict the the $2.5$ and $97.5$ quantiles observed from 30 runs.
+
+\begin{figure}[!h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{epsilon_vs_linucb_blobs}
+    \caption{Regret without regime change}\label{fig:linucb-blobs-regret-no-regime-change}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{epsilon_vs_linucb_blobs_regime_change}
+    \caption{Regret with regime change}\label{fig:linucb-blobs-regret-regime-change}
+  \end{minipage}
+\end{figure}
 
 
 \section{Conclusion}
@@ -341,6 +395,9 @@ the exploration parameter.\footnote{The appendix contains a more thorough graph 
 \newpage
 \appendix
 \section{Appendix}
+
+\subsection{Algorithms omitted from main text}
+
 \begin{algorithm}
   \setstretch{1.2}
     \SetKwInOut{Input}{Input}
@@ -359,5 +416,32 @@ the exploration parameter.\footnote{The appendix contains a more thorough graph 
     }
     \caption{Train}\label{algo:train}
   \end{algorithm}
+
+
+  \begin{algorithm}
+  \setstretch{1.2}
+    \SetKwInOut{Input}{Input}
+    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    $A \gets I_{n^2}$\;
+    $b \gets 0_{n^2}$\;
+    \For{$t \in [T]$}{
+      $\theta_t \gets A^{-1}b$
+      Observe $K$ pairs of vectors $x^k \in \mathbb{R}^n$, $y^k \in \mathbb{R}^n$\;
+      Create $z_{t,k} = (x_1^k, y_1^k, x_1^k, y_1^k, \dots, x_n^k y_{n-1}^k, x_n^k ,y_n^k)$\;
+      \For{$k \in [K]$}{
+        $p_{t,a} \gets \theta_t^\top z_{t,k} + \alpha \sqrt{z_{t,k}^\top A^{-1} z_{t,a}}$
+      }
+      Choose action $k_t = \text{argmax}_a p_{t,a}$ with ties broken arbitrarily\;
+      Observe payoff $ r_t \in \{-1,1 \}$\;
+      $A \gets A + z_{t,k_t}z_{t,k_t}^\top$\;
+      $b \gets z_{t,k_t}r_t$\;
+    }
+    \caption{OnSim-LinUCB}\label{algo:onsim-linucb}
+\end{algorithm}
+
+\subsection{Additonal experiments}
+\label{sec:additional-experiments}
+This section contains additional experiments we ran but omit from the main text due to
+space considerations.
 
 \end{document}

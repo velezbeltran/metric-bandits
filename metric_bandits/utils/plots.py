@@ -41,7 +41,7 @@ def make_plots_pretty():
     Sets the standard plotting parameters
     """
     plt.style.use("ggplot")
-    font = {"size": 13}
+    font = {"size": 22}
     plt.rc("font", **font)
 
 
@@ -114,7 +114,7 @@ def plot_ci(
     ax.set_title(title)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
-    ax.legend()
+    ax.legend(loc="upper right", prop={"size": 16})
     if not os.path.exists(os.path.join(FIGURES_PATH, folder)):
         os.makedirs(os.path.join(FIGURES_PATH, folder))
     fig.savefig(os.path.join(FIGURES_PATH, folder, f"{name}-ci.png"), dpi=300)
