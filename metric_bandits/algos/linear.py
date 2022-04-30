@@ -50,17 +50,20 @@ class Linear(BaseAlgo):
         if not greedy:
             items = list(actions.keys())
             random.shuffle(items)
-            return items[0][0]
 
-        self.ucb_vals = defaultdict(int)
+            self.last_action = items[0]
+            self.last_context = actions[self.last_action][:-1]
+            return self.last_action
+
+        ucb_estimates = defaultdict(int)
         for action in actions:
-            ctx = actions[action][:, :-1]  # last element is the action
+            ctx = actions[action][:-1]  # last element is the action
             val = self.theta.T @ ctx
-            self.ucb_val[action] += val
+            ucb_estimates[action] += val
 
         # return the key with the highest value
-        self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
-        self.last_context = actions[self.last_action][:, :-1]
+        self.last_action = max(ucb_estimates, key=ucb_estimates.get)
+        self.last_context = actions[self.last_action][:-1]
         return self.last_action
 
     def update(self, reward):

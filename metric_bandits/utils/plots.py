@@ -12,26 +12,27 @@ from metric_bandits.constants.paths import FIGURES_PATH
 
 # make matplotlib pretty
 
-
+# we write down 15 colors
 colors = [
-    "b",
-    "g",
-    "r",
-    "c",
-    "m",
-    "y",
-    "k",
-    "w",
-    "#1f77b4",
-    "#ff7f0e",
-    "#2ca02c",
-    "#d62728",
-    "#9467bd",
-    "#8c564b",
-    "#e377c2",
-    "#7f7f7f",
-    "#bcbd22",
-    "#17becf",
+    "#1f77b4",  # muted blue
+    "#ff7f0e",  # safety orange
+    "#2ca02c",  # cooked asparagus green
+    "#d62728",  # brick red
+    "#9467bd",  # muted purple
+    "#e377c2",  # raspberry yogurt pink
+    "#7f7f7f",  # middle gray
+    "#bcbd22",  # curry yellow-green
+    "#17becf",  # blue-teal
+    "#aec7e8",  # light blue
+    "#ffbb78",  # orange
+    "#98df8a",  # yellow-green
+    "#ff9896",  # pink
+    "#c5b0d5",  # light purple
+    "#c49c94",  # chestnut brown
+    "#f7b6d2",  # light pink
+    "#c7c7c7",  # light gray
+    "#dbdb8d",  # tan
+    "#9edae5",  # blue-green
 ]
 
 
@@ -87,7 +88,14 @@ def plot_ci(
     make_plots_pretty()
     fig, ax = plt.subplots(figsize=figsize)
 
+    run_colors = {}
+    c = 0
+
     for rname, run in runs.items():
+        if rname not in run_colors:
+            run_colors[rname] = colors[c]
+            c += 1
+
         run = np.array(run)
         run = run + np.random.normal(0, 0.01, run.shape)
 
@@ -98,8 +106,10 @@ def plot_ci(
         # plot the confidence interval
         if x_axis is None:
             x_axis = np.arange(len(mean))
-        ax.plot(x_axis, mean, label=rname)
-        ax.fill_between(x_axis, conf_int[0], conf_int[1], alpha=0.2)
+        ax.plot(x_axis, mean, label=rname, color=run_colors[rname])
+        ax.fill_between(
+            x_axis, conf_int[0], conf_int[1], alpha=0.2, color=run_colors[rname]
+        )
 
     ax.set_title(title)
     ax.set_xlabel(x_label)
