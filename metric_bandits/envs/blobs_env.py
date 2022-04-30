@@ -6,6 +6,7 @@ last dimension of action is the proposed distance.
 
 
 import itertools
+import random
 import uuid
 
 import torch
@@ -25,6 +26,7 @@ class BlobsEnv(BaseEnv):
         eval_freq=1000,
         to_eval=["knn, embedding"],
         context=None,
+        pregime_change=0.0,
     ):
         """
         Initializes the environment
@@ -47,6 +49,8 @@ class BlobsEnv(BaseEnv):
         self.granularity = [i for i in range(10)]
         self.context = "linear" if context is None else context
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.pregime_change = pregime_change
+        self.balanced = False
 
         # If algorithm is LinUCB, change settings:
 
@@ -81,6 +85,19 @@ class BlobsEnv(BaseEnv):
         self.Y_test = Y[self.idx["test"]].numpy()[:TEST_NUM]
         self.nice_data_available = True
 
+    def change_regime(self):
+        """
+        Changes the regime
+        """
+        if self.balanced:
+            self.data = BLOBS_UNBALANCED
+            self.init_data()
+            self.balanced = False
+        else:
+            self.data = BLOBS_BALANCED
+            self.init_data()
+            self.balanced = True
+
     def reset(self):
         """
         Resets the environment
@@ -109,6 +126,7 @@ class BlobsSimEnv(BlobsEnv):
         possible_actions=[1],
         to_eval=["l2_loss_linear"],
         context=None,
+        pregime_change=0.0,
     ):
         """
         Mnist environment
@@ -125,6 +143,7 @@ class BlobsSimEnv(BlobsEnv):
             eval_freq=eval_freq,
             to_eval=to_eval,
             context=context,
+            pregime_change=pregime_change,
         )
         self.possible_actions = possible_actions
 
@@ -134,6 +153,9 @@ class BlobsSimEnv(BlobsEnv):
         as a vector of (img, img, prop_distance). Every `persistence` num steps
         a new set of actions is returned
         """
+        change_regime = random.random() < self.pregime_change
+        if change_regime:
+            self.change_regime()
 
         # Get new set of actions
         if self.t % self.persistence == 0:

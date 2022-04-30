@@ -49,7 +49,7 @@ class LinUCB(BaseAlgo):
     def choose_action_default(self, actions):
         self.ucb_val_opts, self.ucb_estimate = {}, {}
         for action in actions:
-            ctx = actions[action][:, :-1]  # last element is the action
+            ctx = actions[action][:-1]  # last element is the action
             val = self.theta.T @ ctx
             opt = self.optimist_reward(ctx)
             self.ucb_val_opts[action] = (val, opt)
@@ -57,7 +57,7 @@ class LinUCB(BaseAlgo):
 
         # return the key with the highest value
         self.last_action = max(self.ucb_estimate, key=self.ucb_estimate.get)
-        self.last_context = actions[self.last_action][:, :-1]
+        self.last_context = actions[self.last_action][:-1]
         return self.last_action
 
     def choose_action_active(self, actions):
