@@ -7,7 +7,7 @@ from metric_bandits.algos.base import BaseAlgo
 from metric_bandits.utils.math import get_argmax, sherman_morrison
 
 
-class TLinUCB(BaseAlgo):
+class LinUCB(BaseAlgo):
     def __init__(
         self,
         input_dim,
