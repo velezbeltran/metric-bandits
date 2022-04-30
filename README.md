@@ -22,4 +22,3 @@ git add file.txt
 git add script.txt
 git commit -m "some message"
 ```
-Done
