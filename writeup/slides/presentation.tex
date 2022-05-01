@@ -22,7 +22,13 @@
 
 %general settings
 \setstcolor{red}
-\graphicspath{{../report/figures/active/neural/},{../report/figures/},{../report/figures/online_similarity/neural/}}
+\graphicspath{
+  {../report/figures/active/neural/}
+  {../report/figures/active/linear/}
+  {../report/figures/other/}
+  {../report/figures/online_similarity/neural/}
+  {../report/figures/online_similarity/linear/}
+}
 
 %Information to be included in the title page:
 \usetheme{Boadilla}
@@ -85,7 +91,7 @@ according to how ``similar'' they are.
 \end{frame}
 
 \begin{frame}{}
-    \frametitle{First idea:}
+    \frametitle{First idea: Solution to online learning problem}
     Assume that
     \[\phi(x, y) = x^\top A y = \sum_{i =1}^n\sum_{j=1}^n x_i y_j A_{i,j} \]
     and then use linucb like methods.
@@ -111,7 +117,7 @@ according to how ``similar'' they are.
 \end{frame}
 
 \begin{frame}{}
-    \frametitle{First idea Solution to problem 1:}
+    \frametitle{First idea Solution to online learning problem}
     {\small
     \begin{algorithm}[H]
         \setstretch{1}
@@ -180,7 +186,7 @@ according to how ``similar'' they are.
     Method for solving the problem using a neural network to predict the rewards.
     \begin{itemize}
         \item Uses a Neural Network to model the rewards.
-        \item Proably correct regret bound of $\tilde{O}(\tilde{d}\sqrt{T})$.
+        \item Provably correct regret bound of $\tilde{O}(\tilde{d}\sqrt{T})$.
         \item Slow due to the computation of a very wide matrix.
     \end{itemize}
 \end{frame}
@@ -295,24 +301,60 @@ according to how ``similar'' they are.
   \end{figure}
 \end{frame}
 
-
-
-\begin{frame}{}
-    \frametitle{Comparison of regret}
-
+\begin{frame}
+    \frametitle{Empirical test on blobs:}
     % add figures
 \begin{figure}[!h]
     \centering
     \begin{minipage}{.5\textwidth}
       \centering
-      \includegraphics[width=\linewidth]{online-epsilon-vs-neural-reduced-normalized-ci}
+      \includegraphics[width=\linewidth]{blobs-balanced}
     \end{minipage}%
     \begin{minipage}{.5\textwidth}
       \centering
-      \includegraphics[width=\linewidth]{online-epsilon-vs-neural-reduced-nonormalized-ci}
+      \includegraphics[width=\linewidth]{blobs-unbalanced}
     \end{minipage}
-    \caption{L2 Loss}
+    \caption{Performance SVM}
   \end{figure}
+\end{frame}
+
+
+
+
+\begin{frame}{}
+    \frametitle{Results}
+    \begin{figure}[!h]
+      \centering
+      \begin{minipage}{.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{active-vs-base-blobs-l2-loss_balanced-ci}
+        \caption{Balanced dataset}\label{fig:linucb-blobs-l2-loss-balanced}
+      \end{minipage}%
+      \begin{minipage}{.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{active-vs-base-blobs-l2-loss_unbalanced-ci}
+        \caption{Unbalanced dataset}\label{fig:linucb-blobs-l2-loss-unbalanced}
+      \end{minipage}
+    \end{figure}
+\end{frame}
+
+
+\begin{frame}{}
+    \frametitle{Results}
+
+\begin{figure}[!h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{epsilon_vs_linucb_blobs}
+    \caption{Regret without regime change}\label{fig:linucb-blobs-regret-no-regime-change}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{epsilon_vs_linucb_blobs_regime_change}
+    \caption{Regret with regime change}\label{fig:linucb-blobs-regret-regime-change}
+  \end{minipage}
+\end{figure}
 \end{frame}
 
 
