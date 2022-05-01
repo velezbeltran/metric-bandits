@@ -26,8 +26,8 @@ out_dim = 5
 dropout = 0.3
 
 # Constants for the environment
-T = 50
-batch_size = 5
+T = 12000
+batch_size = 12
 persistence = 2
 eval_freq = 200000
 to_eval = []

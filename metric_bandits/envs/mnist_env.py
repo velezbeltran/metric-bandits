@@ -111,9 +111,13 @@ class MNISTEnv(BaseEnv):
         """
         probability that in a batch size there are no pairs
         """
+        if self.batch_size:
+            return 1.0
+
         numerator = list(
             accumulate(range(10, 10 - self.batch_size, -1), lambda x, y: x * y)
         )[-1]
+
         denominator = 10**self.batch_size
         return numerator / denominator
 
@@ -225,7 +229,6 @@ class MNISTSimEnv(MNISTEnv):
             eval_freq=eval_freq,
             to_eval=to_eval,
         )
-        assert batch_size < 11, "batch size must be less than 10"
         self.possible_actions = possible_actions
 
     def next_actions(self):
