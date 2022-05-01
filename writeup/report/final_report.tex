@@ -163,35 +163,31 @@ In \cite{neuralucb} these assumptions alongside arguments related to the  neural
   \subsection{Active Similarity Learning}
   Despite the differences with online similarity learning, for the active version of the problem we modify the above algorithms only slightly.
   The idea is to use the optimism bonus as a measure of uncertainty and ignore completely the reward.
-
-
-  \begin{algorithm}
+\begin{algorithm}
   \setstretch{1.2}
     \SetKwInOut{Input}{Input}
-    \Input{Queries $T$, exploration parameter $\alpha$, $\tau_r$ frequency of resets, $\tau_T$ frequency of training, $E$ epochs for training, $b_s$ batch size for training, $\epsilon$ learning rate.}
-    $A \gets I_{p}$\;
+    \Input{Rounds $T$ and exploration parameter $\alpha$}
+    $A \gets I_{n^2}$\;
+    $b \gets 0_{n^2}$\;
     \For{$t \in [T]$}{
-      Sample $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R}^n$ from dataset $D$\;
+      $\theta_t \gets A^{-1}b$
+      Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
+      Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
       \For{$k \in [K]$}{
-        $p_{t,k} \gets \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
-        \label{change:active-neuralucb}
+        $p_{t,a} \gets  \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
+        \label{change:active-linucb}
       }
-      Choose pair $k_t = \text{argmax}_kp_{t,k}$ with ties broken arbitrarily\;
-      Query label $ r_t \in \{-1,1\}$\;
-      \If{$t \mod \tau_r = 0$ }{
-        $\theta \gets \text{Train}(\epsilon,E, \{(x_i^{k_i}, y_i^{k_i}, r_i)\}_{i=1}^t,b_s)$\;
-      }
-      \If{$t \mod \tau_T = 0$ }{
-        $A \gets I_p$
-      }
-      $A \gets A + \nabla_\theta \phi(x_t^k, y_t^k)(\nabla_\theta\phi(x_t^k,y_t^k))^\top$\;
+      Choose action pair $k_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.\;
+      Observe label $ r_t \in \{-1,1 \}$\;
+      $A \gets A + z_{t,k_t}z_{t,k_t}^\top$\;
+      $b \gets z_{t,j_t}r_t$\;
     }
-    \caption{Active-NeuralUCB}\label{algo:active-neuralucb}
-  \end{algorithm}
+    \caption{Active-LinUCB}\label{algo:active-linucb}
+\end{algorithm}
 
 Using this framework, each time we have to make a query we can sample a subset of points in the unlabeled dataset $D$  and then we reveal the label of the pair with the highest uncertainty as measured by the bonus.
 We emphasize that $r_t$ now references a label rather than a reward.
-Algorithms \ref{algo:active-neuralucb} and \ref{algo:active-linucb} describe these processes formally.
+Algorithm \ref{algo:active-linucb} describes this processes formally in the case of ActiveSim-LinUCB and similar modification applies for ActiveSim-NeuralUCB \footnote{A precise implementation can be found in the appendix}.
 In Algorithm \ref{algo:active-neuralucb} the most important change is line \ref{change:active-neuralucb} and in algorithm
 \ref{algo:active-linucb} the most important change is line \ref{change:active-linucb}.
 
@@ -232,7 +228,7 @@ using the unormalized version of cosine similarity. All graphs contain the mean 
 computed over 10 runs of the algorithm. The results are shown in Figures (\ref{fig:svm-non-normalized-ci}) and (\ref{fig:svm-normalized-ci})
 
 % add figures
-\begin{figure}[!h]
+\begin{figure}[t]
   \centering
   \begin{minipage}{.45\textwidth}
     \centering
@@ -246,7 +242,7 @@ computed over 10 runs of the algorithm. The results are shown in Figures (\ref{f
 \end{figure}
 
 % add figures
-\begin{figure}[!h]
+\begin{figure}[t]
   \centering
   \begin{minipage}{.45\textwidth}
     \centering
@@ -258,6 +254,10 @@ computed over 10 runs of the algorithm. The results are shown in Figures (\ref{f
   \end{minipage}
   \caption{Performance SVM on normalized learned features Adam vs SGD}\label{fig:svm-normalized-ci}
 \end{figure}
+
+Clearly we see that on normalized version the performance of an active approach yields better results that non-active
+but when normalized features are used we see that this effec almost disappears completely.
+Moreover, it seems that using Adam reduces the different between algorithms.
 
 \subsection{Experiment 2: Comparison of L2 loss through time}
 Using the exact setup as in Experiment 1, we report the results of the L2 loss through time for Active-NeuralUCB.
@@ -275,7 +275,7 @@ Using the exact setup as in Experiment 1, we report the results of the L2 loss t
 \end{figure}
 
 % add figures
-\begin{figure}[!h]
+\begin{figure}[t]
   \centering
   \begin{minipage}{.45\textwidth}
     \centering
@@ -287,14 +287,32 @@ Using the exact setup as in Experiment 1, we report the results of the L2 loss t
   \end{minipage}
   \caption{Performance SVM on normalized learned features Adam vs SGD}\label{fig:l2-loss-normalized-ci}
 \end{figure}
+As before, we observe that adam erases to a large extent the differences between algorithms and that the performance
+of the active approach depends heavily on the particular optimizer used.
 
 \subsection{Experiment 3: Regret of OnSim-NeuralUCB}
 We observe the performance of OnSim-NeuralUCB by compring the regret of the algorithm with the regret of an epsilon-greedy
-neural network with the same architecture and hyperparameters. We report the results only Adam with normalized and unormalized versions
-Like in the previous experiment all graphs contain thegit mean and a 95\% confidence interval. We also compare various values for
-the exploration parameter.\footnote{The appendix contains a more thorough graph with even more values.}
+neural network with the same architecture and hyperparameters. We report the results only for Adam as it had a significantly better performance,
+but provide the comparison both for the normalized and unormalized versions.
+Like in the previous experiment all graphs contain the mean and a 95\% confidence interval. We also compare various values for
+the exploration parameter.
 
+% add figures
+\begin{figure}[!h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{online-epsilon-vs-neural-reduced-nonormalized-ci}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{online-epsilon-vs-neural-reduced-normalized-ci}
+  \end{minipage}
+  \caption{Performance OnSim-NeuralUCB on non-normalized and normalized features}\label{fig:online-epsilon-vs-neural-ci}
+\end{figure}
 
+For this dataset we observe that there is no sigficant difference between using a simpler epsilon greedy approach
+and our neural-ucb  based approach.
 \subsection{LinearUCB}
 \subparagraph{Dataset:}
 To test the linear version of our algorithm we created a blobs dataset.
@@ -316,49 +334,32 @@ which corresponds to two blobs one placed on the left axis and one on the right 
 We say that two points are similar if they share the same value of $p$.
 We refer to this dataset as the Blobs dataset.
 
-\begin{algorithm}
-  \setstretch{1.2}
-    \SetKwInOut{Input}{Input}
-    \Input{Rounds $T$ and exploration parameter $\alpha$}
-    $A \gets I_{n^2}$\;
-    $b \gets 0_{n^2}$\;
-    \For{$t \in [T]$}{
-      $\theta_t \gets A^{-1}b$
-      Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
-      Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
-      \For{$k \in [K]$}{
-        $p_{t,a} \gets  \alpha \sqrt{z_{t,k} A^{-1} x_{t,a}}$
-        \label{change:active-linucb}
-      }
-      Choose action pair $k_t = \text{argmax}_ap_{t,a}$ with ties broken arbitrarily.\;
-      Observe label $ r_t \in \{-1,1 \}$\;
-      $A \gets A + z_{t,k_t}z_{t,k_t}^\top$\;
-      $b \gets z_{t,j_t}r_t$\;
-    }
-    \caption{Active-LinUCB}\label{algo:active-linucb}
-\end{algorithm}
 
 
 \subsubsection{Experiment 1: Effectiveness of active learning balanced and unbalanced datset}
 We test the effectiveness of active learning on the balanced and unbalanced datasets.
 For the unbalanced instance we use $p = 0.1$ but provide the results of an l2 loss assuming that the real distribution of the data is balanced.
 This is done to simulate a situation in which our collected unlabeled data is based and to show the improvement in robustness of the
-algorithm. The plots contain the mean and the 95\% confidence interval for the regret over 30 runs of each algorithm.
+algorithm. The plots in (\ref{fig:linucb-blobs-l2-loss-balanced}) and (\ref{fig:linucb-blobs-l2-loss-unbalanced})  contain the mean and the 95\% confidence interval for the
+regret over 30 runs of each algorithm.
 
 \begin{figure}[!h]
   \centering
   \begin{minipage}{.45\textwidth}
     \centering
     \includegraphics[width=\linewidth]{active-vs-base-blobs-l2-loss_balanced-ci}
-    \caption{Active vs non-active balanced datasets}\label{fig:linucb-blobs-regret-no-regime-change}
+    \caption{Balanced dataset}\label{fig:linucb-blobs-l2-loss-balanced}
   \end{minipage}%
   \begin{minipage}{.45\textwidth}
     \centering
     \includegraphics[width=\linewidth]{active-vs-base-blobs-l2-loss_unbalanced-ci}
-    \caption{Active vs non active balanced datasets}\label{fig:linucb-blobs-regret-regime-change}
+    \caption{Unbalanced dataset}\label{fig:linucb-blobs-l2-loss-unbalanced}
   \end{minipage}
 \end{figure}
 
+We observe that the performance of our active algorithm is slightly worse than the baseline in the balanced data regime
+but it is significantly better when we have unbalanced data. More importantly, we see that it is able to mantain low variance
+in an unbalanced regime while the non-active approach doesn't enjoy this property.
 
 \subsubsection{Experiment 2: Regret of active similarity with regime shifts}
 To show that our approach leads to enhanced robustness we assume that we find ourselves in a situation
@@ -377,7 +378,7 @@ and the error bars depict the the $2.5$ and $97.5$ quantiles observed from 30 ru
     \centering
     \includegraphics[width=\linewidth]{epsilon_vs_linucb_blobs}
     \caption{Regret without regime change}\label{fig:linucb-blobs-regret-no-regime-change}
-  \end{minipage}%
+  \end{minipage}%g
   \begin{minipage}{.45\textwidth}
     \centering
     \includegraphics[width=\linewidth]{epsilon_vs_linucb_blobs_regime_change}
@@ -385,9 +386,40 @@ and the error bars depict the the $2.5$ and $97.5$ quantiles observed from 30 ru
   \end{minipage}
 \end{figure}
 
+When there is no regime change we see that a purely greedy approach has a similar performance to an active approach with exploration parameter
+of $0.1$.
+However, when we allow for regime changes we see that a linucb based approach with exploration parameter $2.05$ beats all greedy algorithms,
+not only interms of a lower mean regret but also in terms of a significantly lower $97.5$ quantile and lower $2.5$ quantile.
 
-\section{Conclusion}
+\section{Discussion of results}
+The results of the experiments show a mixed picture.
+On the one hand the results for Active-LinUCB and OnSim-LinUCB show the benefits that hour approach has
+compared to a naive use of the data or an epsilon greedy baseline.
+This is reasonable as the matrix used in the algorithm naturally favors a diversity of points which allows
+the algorithm to explore the two blobs more efficiently.
 
+However, we observe that for our neural algorithms the performance varies significantly depending on the particular optimization
+strategy used and whether we use normalized or non-normalized features.
+This situation is aggravated further by $O(p^2)$ memory requirements (due to the matrix computation) of the algorithm and the $O(Tp^2)$ time requirements (due to the computation of the optimism).
+All of the above suggests that even if there is an advantage the algorithms are not feasible for practical settings.
+
+Finally, it is important to note that even if the linear approach works, the reason why it performs so well is because it implicitely uses
+some notion of diversity implicit in the eucledean space.
+This is limiting and contradictory in that precisely such a notion of eucledean space is what we are trying to learn.
+
+An interesting alternative which would solve the aformentioned issues realted to the complexity of the algorithms and
+the issues pertaining to the notion of space in the linear case is to use only a shallow notion of UCB as proposed in \cite{shallow} or
+\cite{deep-bayesian-bandits-show-down}.
+This way we can avoid the expensive matrix computations and optimize based on a diversity of vectors with respect to the notion of space
+used by the neural network, which is constantly changing.
+
+\section{Conclusion and Future Work}
+In this work we studied a variety of approaches to solving the active learning and online versions of similarity learning using UCB based appraches.
+Although our work suggests that the methods proposed are not enough for practical use, we believe that the tests conducted suggests that there is
+value in exploring these approaches, especially in situations where there might be shifts in the underlying distribution of the data and the
+amount of similar pairs that we get.
+As a future direction forward we propose to work with shallow methods of exploration to avoid expensive matrix computations while
+retaining the flexibility of neural based appraches.
 
 \bibliography{refs}
 \bibliographystyle{plain}
@@ -438,6 +470,33 @@ and the error bars depict the the $2.5$ and $97.5$ quantiles observed from 30 ru
     }
     \caption{OnSim-LinUCB}\label{algo:onsim-linucb}
 \end{algorithm}
+
+
+
+\begin{algorithm}
+  \setstretch{1.2}
+    \SetKwInOut{Input}{Input}
+    \Input{Queries $T$, exploration parameter $\alpha$, $\tau_r$ frequency of resets, $\tau_T$ frequency of training, $E$ epochs for training, $b_s$ batch size for training, $\epsilon$ learning rate.}
+    $A \gets I_{p}$\;
+    \For{$t \in [T]$}{
+      Sample $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R}^n$ from dataset $D$\;
+      \For{$k \in [K]$}{
+        $p_{t,k} \gets \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
+        \label{change:active-neuralucb}
+      }
+      Choose pair $k_t = \text{argmax}_kp_{t,k}$ with ties broken arbitrarily\;
+      Query label $ r_t \in \{-1,1\}$\;
+      \If{$t \mod \tau_r = 0$ }{
+        $\theta \gets \text{Train}(\epsilon,E, \{(x_i^{k_i}, y_i^{k_i}, r_i)\}_{i=1}^t,b_s)$\;
+      }
+      \If{$t \mod \tau_T = 0$ }{
+        $A \gets I_p$
+      }
+      $A \gets A + \nabla_\theta \phi(x_t^k, y_t^k)(\nabla_\theta\phi(x_t^k,y_t^k))^\top$\;
+    }
+    \caption{Active-NeuralUCB}\label{algo:active-neuralucb}
+  \end{algorithm}
+
 
 \subsection{Additonal experiments}
 \label{sec:additional-experiments}
