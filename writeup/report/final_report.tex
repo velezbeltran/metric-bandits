@@ -12,6 +12,7 @@
 \usepackage{xcolor}         % colors
 \usepackage{lipsum}
 \usepackage{amsmath}
+\usepackage{soul}
 \usepackage{setspace}
 \usepackage{bbm}
 \usepackage[linesnumbered,ruled,commentsnumbered]{algorithm2e}
@@ -20,6 +21,7 @@
 \usepackage{caption}
 \usepackage{subcaption}
 
+\newcommand{\myul}[2][black]{\setulcolor{#1}\ul{#2}\setulcolor{black}}
 \graphicspath{
   {./figures/active/neural/}
   {./figures/active/linear/}
@@ -29,7 +31,7 @@
 
 \IncMargin{1.5em}
 
-\title{Active Heirarchical Metric Learning}
+\title{Online and Active Similarity Learning}
 
 \author{
   Nicolas Beltran\\
@@ -51,23 +53,55 @@
 \maketitle
 
 \begin{abstract}
-    Many learning problems require a well defined notion of distance between points in space. 
+    Many learning problems require a well defined notion of distance between points in space.
     Constructing or finding such a measure falls into the field of metric learning.
-    Applications where data is collected in an interactive or online fashion have become commonplace. 
-    A lot of downstream inference assumes an appropriate representation of this incoming data.
-    To contribute to this problem, we attempt to formulate similarity learning in a bandits framework. 
-    We exploit upper confidence bound like methods, in both online as well as active settings to design and empirically investigate algorithms 
-    that try to learn with linear as well as more expressive non-linear similarity function classes.
+    Applications where data is collected in an interactive or online fashion have become commonplace.
+    However, inference on these datasets assumes an appropriate representation of this incoming data which is sometimes not given.
+    To contribute to such problems, we attempt to formulate similarity learning using a bandits framework.
+    We exploit upper confidence bound like methods, in both online as well as active settings to design such algorithms
+    and empirically investigate their performance using linear as well a neural similarity function classes.
+    The code related to the project can be found in \href{https://github.com/velezbeltran/metric-bandits}{\color{blue} \myul[blue] GitHub}.
 \end{abstract}
 
 
-\section{Introduction}
-Contextual bandits are a framework that leverage the ability to act and potentially influence the incoming data distribution. In a traditional contextual bandits problem in each round $t$, the learner observes some context $c$, chooses some action $a$ to perform, and receives some reward $r(c,a)$ based on the context and action. The learners goal is to maximize its total rewards over a fixed number of total rounds. A lot of interactive repeated decision problems can be modelled using contextual bandits. They serve as a simplified version of the reinforcement learning framework, while providing a toolset needed to analyse performance of the algorithm. This estimate is usually measured by regret, an expected difference between the sum of optimal rewards and collected rewards. Online learning algorithms are designed with the informal goal of minimizing prediction errors. These goals, if aligned can allow the construction of bandit algorithms that solve online learning problems. \\
+\section{Introduction and Previous Work}
+Contextual bandits are a framework that leverage the ability to act and potentially influence the incoming data distribution.
+In a traditional contextual bandits problem in each round $t$, the learner observes some context $c$, chooses some action $a$ to perform, and receives some reward $r(c,a)$ based on the context and action.
+The learner's goal is to maximize its total rewards over a fixed number of total rounds.
+A lot of interactive repeated decision problems can be modelled using contextual bandits.
+They serve as a simplified version of the reinforcement learning framework, while providing a toolset needed to analyse performance of the algorithm.
+This estimate is usually measured by regret, an expected difference between the sum of optimal rewards and collected rewards.
+Depending on the structure that is assume on the rewards, various succesful algorithms have been designed which achieve low regret.\cite{bandit-algorithms}
 
-Learning the notion of similarity between datapoints is important for lots of machine learning, information retrieval and pattern recognition tasks. For instance, clustering relies on being able to measure some distance between points, recommendation systems try to predict which unseen items are "closest" to the ones already viewed. Nearest neighbor classifiers assume that data are closer to points of the same class. There are lots of metric learning algorithms out there that use batch data and learn in a supervised fashion. A good examples is large margin nearest neighbor, which uses the knowledge of local neighbors of points to formulate and solve a convex program. Metric learning has also been approached via the online framework, especially to tackle problems where the magnitude of the data is large enough that batch algorithms are less scalable. One such example is POLA \cite{pola}, where the metric is parametrized by a positive semidefinite matrix. At each iteration, the algorithm works by projecting the current matrix into the obtained constraint set, and then back onto the PSD cone. Another algorithm, RDML \cite{rdml} builds on top of POLA using more efficient update methods to speed up the projections. \\
 
+Learning the notion of similarity between datapoints is important for various machine learning, information retrieval and pattern recognition tasks.
+There are various metric learning algorithms that use batch data and learn in a supervised fashion.\cite{metric-learning}
+A good examples is large margin nearest neighbor, which uses the knowledge of local neighbors of points to formulate and solve a convex program.\cite{understanding-machine-learning}
+Metric learning has also been approached via the online framework, especially to tackle problems where the magnitude of the data is large enough that batch algorithms are less scalable.
+One such example is POLA \cite{pola}, where the metric is parametrized by a positive semidefinite matrix.
+At each iteration, the algorithm works by projecting the current matrix into the obtained constraint set, and then back onto the PSD cone.
+Another algorithm, RDML \cite{rdml} builds on top of POLA using more efficient update methods to speed up the projections.
 
-In order to move to the bandits framework, we relax our requirement for searching for a distance function in the formal sense of satisfying metric axioms, and instead focus our attention on similarity functions of any function class such that  for 2 n dimensional objects, $\phi: \mathbb{R}^{2n} \to \mathbb{R}^2$. The key idea is engineer the bandit reward to encourage actions that choose \textit{similar} points, and coax the algorithm to model this reward in the hopes that it transitively captures this notion of similarity. In this paper we build intuition of this concept by first restricting our function class to linear similarities, and devising a method similar to the LinUCB contextual bandit algorithm. Then we move on to more expressive model classes. Although various non-linear methods for the estimation of the reward exist we chose to focus on neural based ones. Previous work examines the use of these methods in the context of bayesian optimization \cite{deep-bayesian-bandits-show-down} or ucb based methods \cite{neuralucb}\cite{shallow} we chose to focus on ucb based methods that make use of the full neural network to estimate its optimistic bound.  We design an algorithm that encourages the creation of embeddings to behave well under cosine similarity. Our algorithm formulations are somewhat inspired by the methods discussed in \cite{deep-bayesian-bandits-show-down}. Our exploration is broadly divided into two frameworks, the online framework that aims to minimize cumulative regret, and an active framework that prioritises efficient search of the optimum function. We looked at experimental methodologies for active metric learning in \cite{active-learning}. Our motivation for active learning comes from studying problems like active ranking by pairwise comparison \cite{ranking} and interactive structure learning which presents a generalised framework for interactive learning problems \cite{SQBC}.  
+One key disadvante that these algorithms have is that, by being constrained to finding a metric, they usually require the solution of complex optimization problems on constrained sets,
+which makes difficult the application of bandit algorithms.
+Therefore, in order to move to the bandits framework, we relax our requirement for searching for a distance function in the formal sense of satisfying the definition of a metric, and instead focus our attention on similarity functions defined as functions of the form $\phi: \mathbb{R}^{2n} \to \mathbb{R}$.
+The key idea is to engineer the bandit reward to encourage actions that choose \textit{similar} points, and coax the algorithm to model this reward in the hopes that it transitively captures this notion of similarity.
+
+In this paper we build intuition of this concept by first restricting our function class to linear similarities, and devising a method similar to the LinUCB contextual bandit algorithm\cite{linucb}.
+Then we move on to more expressive model classes.
+Although various non-linear methods for the estimation of the reward exist we chose to focus on neural based ones.
+Previous work examines the use of these methods in the context of bayesian optimization \cite{deep-bayesian-bandits-show-down} or ucb based methods \cite{neuralucb}\cite{shallow}.
+We chose to focus on ucb based methods that make use of the full neural network to estimate its optimistic bound and modify the approaches proposed in \cite{neuralucb}
+so that the neural network behaves well under cosine similarity.
+
+Our exploration is broadly divided into two frameworks, the online framework that aims to minimize cumulative regret, and an active framework that prioritises efficient search of the optimum function.
+To our knowledge we are the first group to ever present an active and online framework for similarity learning using bandits.
+Additionally, to the best of our knowledge we are also the first group to use the optimism framework for exploration in active similarity learning.
+Alternative approaches to this problem can be found in \cite{active-learning} where the authors use outlier detection and boundary points to do active learning
+, interactive structure learning \cite{SQBC} which presents a more general framework for interactive learning problems
+, and in  active ranking by pairwise comparison \cite{ranking} which doesn't deal with the notion of similarity but has similar ideas with regards to active learning.
+An important difference with the aforemention approaches is that we take a more standard view of similarity learning and focus on modelling meaningful embeddings directly.
+
 
 % --------------------------------------------------------------
 % --------------------------------------------------------------
@@ -100,12 +134,12 @@ We assume that the learner has access to a dataset $D = \{x_i \in \mathbb{R}^n| 
 The learner can query $T$ pairs of points in this set $D$ to obtain a dataset $D_T = \{(x_t, y_t, r_t) ~|  ~t \in [T]\}$  where $x_t$ and $y_t$ are the points in space and $r_t$ is their similarity.
 The learner mantains and estimate $\hat{\phi}_t \in \mathcal{F}$ of $\phi$, where $\mathcal{F}$ is its function class and we denote the loss between an estimate $\hat{\phi}$ a $\phi$ as
 \[ \mathcal{L}(\phi, \hat{\phi}) = \mathbb{E}_{(x, y) \sim \mathcal{D} \times \mathcal{D}}[(\hat{\phi}(x,y) - \phi(x, y))^2] \]
-In this problem the goal is to find $\min_{\phi \in \mathcal{F}} \mathcal{L}(\hat{\phi}_T, \phi)$.
+In this problem the goal is to find $\min_{\hat{\phi}_t \in \mathcal{F}} \mathcal{L}(\hat{\phi}_T, \phi)$.
 
 
 \section{Description of the algorithms}
 We provide 4 algorithms  which can be grouped into neural and linear bandit version. We refer to our algorithms as OnSim-LinUCB, ActSim-LinUCB,OnSim-NeuralUCB, ActSim-NeuralUCB, depeding on whether the bandit algorithm they are based on and the probelm
-they are trying to solve. The algorithms are all very similar but we provide them in full for completeness.
+they are trying to solve. We provide one relevant example of each type in the paper and refer the reader to the appendix for more details.
 
 
 \subsection{Online similarity learning}
@@ -129,7 +163,7 @@ Formally, we assume that
 Here $f: \mathbb{R}^n \to \mathbb{R}^m$ is a simple neural network of the form
 \[ f(x; \theta) = b_L + W_{L} \sigma\left(b_{L-1} +  W_{L-1} \sigma\left( \dots \sigma\left(b_1 + W_1 x\right)\right) \right)\]
 for some $L \in \mathbb{N}_{\geq 2}$, $W_1 \in \mathbb{R}^{d \times n}$, $W_{L} \in \mathbb{R}^{m \times d}$, $W_{l} \in \mathbb{R}^{d\times d}$ if $l \in [2, L-1]$, $b_L \in \mathbb{R}^m$, $b_l \in \mathbb{R}^d$ for $l \neq L$, and where $\sigma(x) = \max\{0, x\}$ applied component wise. We use $\theta$ to denote the flattened vector of $(W_L, b_L, \dots, W_1, b_1)$.
-Using this notation OnSim-NeuralUCB is described below in Algorithm \ref{algo:onsim-neuralucb}. We use $p$ to denote the total number of trainable parameters in the neural network.
+Using this notation, OnSim-NeuralUCB is described below in Algorithm \ref{algo:onsim-neuralucb}. We use $p$ to denote the total number of trainable parameters in the neural network.
 
 \begin{algorithm}
   \setstretch{1.2}
@@ -137,7 +171,7 @@ Using this notation OnSim-NeuralUCB is described below in Algorithm \ref{algo:on
     \Input{Rounds $T$, exploration parameter $\alpha$, $\tau_r$ frequency of resets, $\tau_T$ frequency of training, $E$ epochs for training, $b_s$ batch size for training, $\epsilon$ learning rate.}
     $A \gets I_{p}$\;
     \For{$t \in [T]$}{
-      Observe $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R^n}$\;
+      Observe $K$ pairs of vectors $x_t^k \in \mathbb{R}^n$, $y_t^k \in \mathbb{R}^n$\;
       \For{$k \in [K]$}{
         $p_{t,k} \gets \phi(x,y) + \alpha \sqrt{(\nabla_\theta \phi(x_t^k, y_t^k))^\top A^{-1}\nabla_\theta\phi(x_t^k,y_t^k)}$\;
       }
@@ -154,12 +188,14 @@ Using this notation OnSim-NeuralUCB is described below in Algorithm \ref{algo:on
     \caption{OnSim-NeuralUCB}\label{algo:onsim-neuralucb}
   \end{algorithm}
 Intuitively, this algorithm acts optimally with the current set of parameters with a bonus for exploration, and every so often it stops back to train the network.
-``Train" can be found in the appendix as \ref{algo:train} but it simply describes the normal process of training a neural network with MSE loss.
+\textbf{Train} can be found in the appendix as algorithm \ref{algo:train} but it simply describes the normal process of training a neural network with MSE loss.
 
 Our algorithm is very similar to that proposed in \cite{neuralucb} but it differs in the following aspects: 1. We adopt a siamese neural network architecture unlike the paper.
-2.We add bias 3.We use cosine similarity function in our last layer 4. We restart the the matrix $A$ after every $t \mod \tau_T = 0$ iterations 5.We use a constant exploration parameter.
+2.We add bias 3.We use cosine similarity function in our last layer 4. We restart the the matrix $A$ after every $t \mod \tau_T = 0$ iterations and 5.We use a constant exploration parameter.
+
 We propose these changes because we believe they are more sensible for our particular application (and do provide better empirical performance) but they destroy any theoretical guarantees.
-In \cite{neuralucb} these assumptions alongside arguments related to the  neural tangent kernel matrix \cite{neuraltangentkernel} are used to provide a $\tilde{O}(\sqrt{T})$, bound on the regret of algorithm.
+In \cite{neuralucb} these assumptions alongside arguments related to the  neural tangent kernel matrix \cite{neuraltangentkernel} are used to provide a $\tilde{O}(\tilde{d}\sqrt{T})$, bound on the regret of algorithm, where
+$\tilde{d}$ is a measurment of the complexity of the neural network.
 
 
   \subsection{Active Similarity Learning}
@@ -172,7 +208,7 @@ In \cite{neuralucb} these assumptions alongside arguments related to the  neural
     $A \gets I_{n^2}$\;
     $b \gets 0_{n^2}$\;
     \For{$t \in [T]$}{
-      $\theta_t \gets A^{-1}b$
+      $\theta_t \gets A^{-1}b$\;
       Observe $K$ pairs of vectors $x^k \in R^n$, $y^k \in R^n$\;
       Create $z_{t,k} = (x_1^ky_1^k, x_1^ky_1^k, \dots, x_n^k y_{n-1}^k, x_n^k y_n^k)$\;
       \For{$k \in [K]$}{
@@ -223,11 +259,13 @@ We sampled ten datapoints at time for both the online and active version of the 
 and trained for two epochs. Every 4 epochs we reset the matrices to their orignal states. We rotate the the data the algorithm sees every two time steps.
 The values reported for losses and accuracy are computed on a heldout set of the data of 1000 datapoints.
 
-\subsubsection{Experiment 1: Effectiveness of a linear classifier on learned features}
+\subsubsection{Experiment 1: Effectiveness of a linear classifier on actively learned features}
 To determine the quality of our embeddings we used an SVM to classify the learned features and observe these values
-per iteration. We report the results both for SGD with momentum and Adam. Additionally, we also report the performance of NeuralUCB
-using the unormalized version of cosine similarity. All graphs contain the mean and a 95\% confidence interval
-computed over 10 runs of the algorithm. The results are shown in Figures (\ref{fig:svm-non-normalized-ci}) and (\ref{fig:svm-normalized-ci})
+per iteration.
+We report the results both for SGD with momentum and Adam.
+Additionally, we also report the performance using the unormalized version of cosine similarity.
+All graphs contain the mean and a 95\% confidence interval computed over 10 runs of the algorithm.
+The results are shown in Figures (\ref{fig:svm-non-normalized-ci}) and (\ref{fig:svm-normalized-ci})
 
 % add figures
 \begin{figure}[t]
@@ -240,11 +278,15 @@ computed over 10 runs of the algorithm. The results are shown in Figures (\ref{f
     \centering
     \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-Adam-non-normalized-ci}
   \end{minipage}
-  \caption{Performance SVM on non-normalized learned features Adam vs SGD}\label{fig:svm-non-normalized-ci}
+  \caption{Performance SVM on non-normalized learned features SGD (left) vs Adam (right)}\label{fig:svm-non-normalized-ci}
 \end{figure}
 
+Clearly we see that on normalized version the performance of an active approach yields better results that non-active
+but when normalized features are used we see that this effect almost disappears completely.
+Moreover, using Adam reduces the difference between algorithms.
+
 % add figures
-\begin{figure}[t]
+\begin{figure}[h]
   \centering
   \begin{minipage}{.45\textwidth}
     \centering
@@ -254,15 +296,13 @@ computed over 10 runs of the algorithm. The results are shown in Figures (\ref{f
     \centering
     \includegraphics[width=\linewidth]{active-vs-base-moons-linear-loss-Adam-normalized-ci}
   \end{minipage}
-  \caption{Performance SVM on normalized learned features Adam vs SGD}\label{fig:svm-normalized-ci}
+  \caption{Performance SVM on normalized learned features SGD (left) vs Adam (right)}\label{fig:svm-normalized-ci}
 \end{figure}
 
-Clearly we see that on normalized version the performance of an active approach yields better results that non-active
-but when normalized features are used we see that this effec almost disappears completely.
-Moreover, it seems that using Adam reduces the different between algorithms.
 
-\subsection{Experiment 2: Comparison of L2 loss through time}
-Using the exact setup as in Experiment 1, we report the results of the L2 loss through time for Active-NeuralUCB.
+\subsection{Experiment 2: Comparison of $l_2$ loss through time of active algorithm}
+Using the exact setup as in Experiment 1, we report the results of the $l_2$ loss through time for ActSim-NeuralUCB.
+The results of this experiment are shown in figure (\ref{fig:l2-loss-non-normalized-ci}) and (\ref{fig:l2-loss-normalized-ci}).
 \begin{figure}[!h]
   \centering
   \begin{minipage}{.45\textwidth}
@@ -273,7 +313,7 @@ Using the exact setup as in Experiment 1, we report the results of the L2 loss t
     \centering
     \includegraphics[width=\linewidth]{active-vs-base-moons-l2-loss-Adam-non-normalized-ci}
   \end{minipage}
-  \caption{Performance SVM on non-normalized learned features Adam vs SGD}\label{fig:l2-loss-non-normalized-ci}
+  \caption{$l_2$ loss on non-normalized features SGD (left) vs Adam (right)}\label{fig:l2-loss-non-normalized-ci}
 \end{figure}
 
 % add figures
@@ -287,7 +327,7 @@ Using the exact setup as in Experiment 1, we report the results of the L2 loss t
     \centering
     \includegraphics[width=\linewidth]{active-vs-base-moons-l2-loss-Adam-normalized-ci}
   \end{minipage}
-  \caption{Performance SVM on normalized learned features Adam vs SGD}\label{fig:l2-loss-normalized-ci}
+  \caption{$l_2$ loss on normalized features SGD (left) vs Adam (right)}\label{fig:l2-loss-normalized-ci}
 \end{figure}
 As before, we observe that adam erases to a large extent the differences between algorithms and that the performance
 of the active approach depends heavily on the particular optimizer used.
@@ -296,8 +336,8 @@ of the active approach depends heavily on the particular optimizer used.
 We observe the performance of OnSim-NeuralUCB by compring the regret of the algorithm with the regret of an epsilon-greedy
 neural network with the same architecture and hyperparameters. We report the results only for Adam as it had a significantly better performance,
 but provide the comparison both for the normalized and unormalized versions.
-Like in the previous experiment all graphs contain the mean and a 95\% confidence interval. We also compare various values for
-the exploration parameter.
+Like in the previous experiment all graphs contain the mean and a 95\% confidence interval over 10 runs.
+ We also compare various values for the exploration parameter. The results can be found in figure (\ref{fig:online-epsilon-vs-neural-ci})
 
 % add figures
 \begin{figure}[!h]
@@ -320,7 +360,7 @@ and our neural-ucb  based approach.
 To test the linear version of our algorithm we created a blobs dataset.
 Every point is drawn from the following process. Assume that $x_i' \sim \mathcal{N}((0, 0)^\top,I_2)$ and $p_i \sim \text{Bernoulli}(p)$ where $p$ is
 some parameter.
-Then the data point $x_i$ is drawn from the follwing process
+Then the data point $x_i$ is drawn as
 \[x_i = \begin{bmatrix} 3 & 0\\ 0 & 1\\ \end{bmatrix} x_i' -(1-p_i)
 \begin{bmatrix}
 1\\
@@ -340,8 +380,8 @@ We refer to this dataset as the Blobs dataset.
 
 \subsubsection{Experiment 1: Effectiveness of active learning balanced and unbalanced datset}
 We test the effectiveness of active learning on the balanced and unbalanced datasets.
-For the unbalanced instance we use $p = 0.1$ but provide the results of an l2 loss assuming that the real distribution of the data is balanced.
-This is done to simulate a situation in which our collected unlabeled data is based and to show the improvement in robustness of the
+For the unbalanced instance we use $p = 0.1$ but provide the results of an $l_2$ loss assuming that the real distribution of the data is balanced.
+This is done to simulate a situation in which our collected unlabeled data is unbalanced and to show the improvement in robustness of the
 algorithm. The plots in (\ref{fig:linucb-blobs-l2-loss-balanced}) and (\ref{fig:linucb-blobs-l2-loss-unbalanced})  contain the mean and the 95\% confidence interval for the
 regret over 30 runs of each algorithm.
 
@@ -365,10 +405,10 @@ in an unbalanced regime while the non-active approach doesn't enjoy this propert
 
 \subsubsection{Experiment 2: Regret of active similarity with regime shifts}
 To show that our approach leads to enhanced robustness we assume that we find ourselves in a situation
-where the might be regime shifts in the data in the sense that the underlying distribution at which the data is provided
+where there might be regime shifts in the data in the sense that the underlying distribution at which the similar points are provided
 to the algorithm changes.
 
-In particular, in the situation below we assume that initially the data is provided to us where there is an equal changce of getting a point
+In particular, in the situation below we assume that initially the data is provided to us where there is an equal chance of getting a point
 from the left blob and right blob but there at every time-step there is a $1/3000$ chance that
 we will have a regime shift where the data is now sampled such that $p = 0.1$.
 Plots (\ref{fig:linucb-blobs-regret-no-regime-change}) and (\ref{fig:linucb-blobs-regret-regime-change}) indicate the mean regret of the algorithm at the end
@@ -391,28 +431,28 @@ and the error bars depict the the $2.5$ and $97.5$ quantiles observed from 30 ru
 When there is no regime change we see that a purely greedy approach has a similar performance to an active approach with exploration parameter
 of $0.1$.
 However, when we allow for regime changes we see that a linucb based approach with exploration parameter $2.05$ beats all greedy algorithms,
-not only interms of a lower mean regret but also in terms of a significantly lower $97.5$ quantile and lower $2.5$ quantile.
+not only in terms of a lower mean regret but also in terms of a significantly lower $97.5$ quantile and lower $2.5$ quantile.
 
 \section{Discussion of results}
 The results of the experiments show a mixed picture.
-On the one hand the results for Active-LinUCB and OnSim-LinUCB show the benefits that hour approach has
-compared to a naive use of the data or an epsilon greedy baseline.
+On the one hand the results for Active-LinUCB and OnSim-LinUCB show the benefits that our approach has
+compared to a naive use of the data or over an epsilon greedy baseline.
 This is reasonable as the matrix used in the algorithm naturally favors a diversity of points which allows
 the algorithm to explore the two blobs more efficiently.
 
-However, we observe that for our neural algorithms the performance varies significantly depending on the particular optimization
+However, we observe that for our neural algorithms, the performance varies significantly depending on the particular optimization
 strategy used and whether we use normalized or non-normalized features.
-This situation is aggravated further by $O(p^2)$ memory requirements (due to the matrix computation) of the algorithm and the $O(Tp^2)$ time requirements (due to the computation of the optimism).
-All of the above suggests that even if there is an advantage the algorithms are not feasible for practical settings.
+This situation is aggravated further by the $O(p^2)$ memory requirements (due to the matrix computation) of the algorithm and the $O(Tp^2)$ time complexity requirements (due to the computation of the optimism).
+All of the above suggests that even if there is an advantage, the algorithms are not feasible for practical settings.
 
 Finally, it is important to note that even if the linear approach works, the reason why it performs so well is because it implicitely uses
-some notion of diversity implicit in the eucledean space.
-This is limiting and contradictory in that precisely such a notion of eucledean space is what we are trying to learn.
+some notion of diversity with regards to the the eucledean space.
+This is limiting and contradictory in that precisely such a notion is what we are trying to learn.
 
 An interesting alternative which would solve the aformentioned issues realted to the complexity of the algorithms and
 the issues pertaining to the notion of space in the linear case is to use only a shallow notion of UCB as proposed in \cite{shallow} or
 \cite{deep-bayesian-bandits-show-down}.
-This way we can avoid the expensive matrix computations and optimize based on a diversity of vectors with respect to the notion of space
+This way we can avoid the expensive matrix computations and optimize based on a diversity of vectors with respect to the current embedding
 used by the neural network, which is constantly changing.
 
 \section{Conclusion and Future Work}
