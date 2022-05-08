@@ -539,10 +539,96 @@ retaining the flexibility of neural based appraches.
     \caption{Active-NeuralUCB}\label{algo:active-neuralucb}
   \end{algorithm}
 
-
-\subsection{Additonal experiments}
+\newpage
+\subsection{MNIST dataset}
 \label{sec:additional-experiments}
 This section contains additional experiments we ran but omit from the main text due to
 space considerations.
+
+Our first set of experiments contains the equivalent of the experiments performed on the crescent moons dataset
+but for MNIST.
+Because of the size of the dataset, we were not able to run the experiment on the full dataset and instead
+first performed PCA on it and reduced it to 15 dimensional space.
+As can be seen for the figures the results are significantly less promising than the ones on the crescent moons dataset.
+We attribute this, mostly due to the fact that the dimensionality can't capture the results adequately
+All of the settings are the same as before except for the fact that we run the experiment with more queries or though a longer time-span.
+
+Figures \ref{fig:svm-non-normalized-ci-mnist} and \ref{fig:svm-normalized-ci-mnist} compare the performance of the learned features in the active version of the algorithm using SVMs.
+Figures \ref{fig:l2-loss-normalized-ci-mnist} and \ref{fig:l2-loss-non-normalized-ci-mnist} compare the performance of the learned metric with respect to the $l_2$ loss.
+Figure \ref{fig:online-epsilon-vs-neural-ci-mnist} compares the performance of an epsilon greedy vs the neural version of the algorithm in the online setting.
+
+
+
+% add figures
+\begin{figure}[h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-mnist-linear-loss-SGD-non-normalized-ci}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-mnist-linear-loss-Adam-non-normalized-ci}
+  \end{minipage}
+  \caption{Performance SVM on non-normalized learned features SGD (left) vs Adam (right)}\label{fig:svm-non-normalized-ci-mnist}
+\end{figure}
+
+
+% add figures
+\begin{figure}[h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-mnist-linear-loss-SGD-normalized-ci}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-mnist-linear-loss-Adam-normalized-ci}
+  \end{minipage}
+  \caption{Performance SVM on normalized learned features SGD (left) vs Adam (right)}\label{fig:svm-normalized-ci-mnist}
+\end{figure}
+
+
+\begin{figure}[!h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-mnist-l2-loss-SGD-non-normalized-ci}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-mnist-l2-loss-Adam-non-normalized-ci}
+  \end{minipage}
+  \caption{$l_2$ loss on non-normalized features SGD (left) vs Adam (right)}\label{fig:l2-loss-non-normalized-ci-mnist}
+\end{figure}
+
+% add figures
+\begin{figure}[h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-moons-l2-loss-SGD-normalized-ci}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{active-vs-base-moons-l2-loss-Adam-normalized-ci}
+  \end{minipage}
+  \caption{$l_2$ loss on normalized features SGD (left) vs Adam (right)}\label{fig:l2-loss-normalized-ci-mnist}
+\end{figure}
+
+% add figures
+\begin{figure}[h]
+  \centering
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{online-epsilon-vs-neural-mnist--non-normalized-ci}
+  \end{minipage}%
+  \begin{minipage}{.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{online-epsilon-vs-neural-mnist--normalized-ci}
+  \end{minipage}
+  \caption{Performance OnSim-NeuralUCB on non-normalized and normalized features}\label{fig:online-epsilon-vs-neural-ci-mnist}
+\end{figure}
+
 
 \end{document}
