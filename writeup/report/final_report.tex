@@ -51,21 +51,23 @@
 \maketitle
 
 \begin{abstract}
-    Many problems require a well defined notion of a distance between points in space.
+    Many learning problems require a well defined notion of distance between points in space. 
     Constructing or finding such a measure falls into the field of metric learning.
-    Although many algorithms exist in the field when a learner has access to a fixed dataset,  there is room for improvement in terms of samples efficiency that the learner needs to know, imposition of desired structure, especially when the data appears in an \textit{online} manner.
-    We propose a project that reduces the problem of online/active metric learning to bandits. In case our plan turn out to be too ambitious, we have a fallback - an empirical investigation of some algorithms that have dealt with the problem in an online setting or in situations where the learner can selective query the points that it wants to know information about.
+    Applications where data is collected in an interactive or online fashion have become commonplace. 
+    A lot of downstream inference assumes an appropriate representation of this incoming data.
+    To contribute to this problem, we attempt to formulate similarity learning in a bandits framework. 
+    We exploit upper confidence bound like methods, in both online as well as active settings to design and empirically investigate algorithms 
+    that try to learn with linear as well as more expressive non-linear similarity function classes.
 \end{abstract}
 
 
 \section{Introduction}
+Contextual bandits are a framework that leverage the ability to act and potentially influence the incoming data distribution. In a traditional contextual bandits problem in each round $t$, the learner observes some context $c$, chooses some action $a$ to perform, and receives some reward $r(c,a)$ based on the context and action. The learners goal is to maximize its total rewards over a fixed number of total rounds. A lot of interactive repeated decision problems can be modelled using contextual bandits. They serve as a simplified version of the reinforcement learning framework, while providing a toolset needed to analyse performance of the algorithm. This estimate is usually measured by regret, an expected difference between the sum of optimal rewards and collected rewards. Online learning algorithms are designed with the informal goal of minimizing prediction errors. These goals, if aligned can allow the construction of bandit algorithms that solve online learning problems. \\
 
-\section{Related Work}
+Learning the notion of similarity between datapoints is important for lots of machine learning, information retrieval and pattern recognition tasks. For instance, clustering relies on being able to measure some distance between points, recommendation systems try to predict which unseen items are "closest" to the ones already viewed. Nearest neighbor classifiers assume that data are closer to points of the same class. There are lots of metric learning algorithms out there that use batch data and learn in a supervised fashion. A good examples is large margin nearest neighbor, which uses the knowledge of local neighbors of points to formulate and solve a convex program. Metric learning has also been approached via the online framework, especially to tackle problems where the magnitude of the data is large enough that batch algorithms are less scalable. One such example is POLA \cite{pola}, where the metric is parametrized by a positive semidefinite matrix. At each iteration, the algorithm works by projecting the current matrix into the obtained constraint set, and then back onto the PSD cone. Another algorithm, RDML \cite{rdml} builds on top of POLA using more efficient update methods to speed up the projections. \\
 
-\section{Long-term goals}
 
-\section{Preliminaries}
-
+In order to move to the bandits framework, we relax our requirement for searching for a distance function in the formal sense of satisfying metric axioms, and instead focus our attention on similarity functions of any function class such that  for 2 n dimensional objects, $\phi: \mathbb{R}^{2n} \to \mathbb{R}^2$. The key idea is engineer the bandit reward to encourage actions that choose \textit{similar} points, and coax the algorithm to model this reward in the hopes that it transitively captures this notion of similarity. In this paper we build intuition of this concept by first restricting our function class to linear similarities, and devising a method similar to the LinUCB contextual bandit algorithm. Then we move on to more expressive model classes. Although various non-linear methods for the estimation of the reward exist we chose to focus on neural based ones. Previous work examines the use of these methods in the context of bayesian optimization \cite{deep-bayesian-bandits-show-down} or ucb based methods \cite{neuralucb}\cite{shallow} we chose to focus on ucb based methods that make use of the full neural network to estimate its optimistic bound.  We design an algorithm that encourages the creation of embeddings to behave well under cosine similarity. Our algorithm formulations are somewhat inspired by the methods discussed in \cite{deep-bayesian-bandits-show-down}. Our exploration is broadly divided into two frameworks, the online framework that aims to minimize cumulative regret, and an active framework that prioritises efficient search of the optimum function. We looked at experimental methodologies for active metric learning in \cite{active-learning}. Our motivation for active learning comes from studying problems like active ranking by pairwise comparison \cite{ranking} and interactive structure learning which presents a generalised framework for interactive learning problems \cite{SQBC}.  
 
 % --------------------------------------------------------------
 % --------------------------------------------------------------
@@ -73,18 +75,18 @@
 \label{problem-statement}
 % --------------------------------------------------------------
 % --------------------------------------------------------------
-We consider two different problems.
-The first problem consists of making a series of sequential predictions while learning a
-similiarity measure. We refer to this problem as online similarity prediction.
-The second problem consists of learning a similarity measure while querying points in space.
-We refer to this problem as active similarity learning.
+We focus our attention on two different problems.
+The first consists of making a series of sequential predictions while learning a
+similarity measure. We refer to this problem as Online Similarity Learning.
+The second problem consists of learning a similarity measure while actively querying points in space.
+We refer to this problem as Active Similarity Learning.
 
-\subsection{Online similarity learning}
+\subsection{Online Similarity Learning}
 \label{problem-statement:online-similarity-learning}
 We consider an online similarity learning problem played over $T$ rounds.
 At round $t$ the environment samples $K$ pairs of points $(x_{t,k}, y_{t,k}) \in \mathbb{R}^{2n}$.
 The agent then chooses pair $k_t \in [K]$ and is given a reward $r_{t,k_{t}} \in \{1, -1\}$.
-We assume that there exists some similarity function unknown to the agent $\phi: \mathbb{R}^{2n} \to \{-1, 1\}$
+We assume that there exists some similarity function unknown to the agent $\phi: \mathbb{R}^{2n} \to \{1, -1\}$
 and that the rewards are such that if at time $t \in [T]$ the agent chooses pair $(x_{t,k}, y_{t,k})$
 then the reward is $\phi(x_{t,k}, y_{t,k})$.
 
